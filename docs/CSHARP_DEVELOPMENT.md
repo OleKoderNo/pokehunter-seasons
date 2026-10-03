@@ -146,6 +146,62 @@ Editing the source file does not automatically update the pasted action.
 The generated `PokeHunter.StreamerBot.dll` is a compilation artifact.
 This workflow uses pasted action source; it does not deploy that DLL.
 
+## Configuration loading and checks
+
+The game configuration code is in `streamerbot/configuration/`:
+
+- `GameConfig.cs` describes the settings structure.
+- `RequiredConfigContractResolver.cs` maps property names to camelCase
+  and requires configuration properties to be present and non-null.
+- `GameConfigLoader.cs` reads the JSON file, deserializes it, and calls
+  the validator.
+- `GameConfigValidator.cs` checks the supported schema version and
+  numerical rules.
+
+Unknown JSON properties are rejected to help catch misspelled settings.
+
+The loader reports invalid settings rather than silently substituting
+defaults.
+
+### Run the configuration checks
+
+From the repository root, build the standalone test program:
+
+```powershell
+dotnet build tests/configuration/ConfigurationChecks.csproj
+```
+
+After a successful build, run:
+
+```powershell
+& ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json"
+```
+
+The checks verify that:
+
+1. The supplied game configuration loads successfully.
+2. A temporary copy with a zero unique-entry milestone size is rejected
+   for the expected reason.
+
+The original configuration file is not modified.
+
+The program returns exit code `0` on success and `1` on failure.
+Temporary test files are removed after execution when possible.
+
+These checks do not yet cover every validation rule.
+
+### Test locations
+
+- `streamerbot/tests/` contains manual test actions executed inside
+  Streamer.bot.
+- `tests/configuration/` contains the standalone configuration checks.
+
+The standalone project compiles the actual configuration source files,
+so changes to the loader and validator are included when it is rebuilt.
+
+Configuration loading is currently verified through the standalone
+checks. It has not yet been connected to a live catching action.
+
 ## Troubleshooting
 
 ### dotnet is unavailable or no SDK is listed

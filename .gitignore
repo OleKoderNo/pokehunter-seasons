@@ -18,3 +18,7 @@ backups/
 streamerbot/**/bin/
 streamerbot/**/obj/
 streamerbot/StreamerBot.local.props
+
+# Standalone C# test output
+tests/**/bin/
+tests/**/obj/

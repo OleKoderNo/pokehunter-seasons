@@ -9,8 +9,15 @@ This document explains how to customize the game using:
 - `config/events.json` — event schedules, themed Pokémon, costumes, and event weights.
 - `config/catch-overlay.json` — catch notification appearance, animation, audio, and display queue.
 
-The configuration loader and game logic are not implemented yet.
-Creating or editing this file alone does not change Streamer.bot or Twitch.
+The loader and value validator for `config/game.json` are implemented
+and have passed initial standalone checks.
+
+Configuration loading is not yet connected to a live Streamer.bot
+catching action. Editing these files does not currently change Twitch
+rewards or live gameplay.
+
+Loaders for the season, event, and overlay configuration files are not
+implemented yet.
 
 ## Editing the file
 

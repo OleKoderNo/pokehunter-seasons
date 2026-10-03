@@ -1,71 +1,77 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Each developer supplies their own Streamer.bot installation path. -->
-  <Import
-    Project="StreamerBot.local.props"
-    Condition="Exists('StreamerBot.local.props')"
-  />
-
-  <PropertyGroup>
-    <!-- Match the framework used by our verified Streamer.bot setup. -->
-    <TargetFramework>net481</TargetFramework>
-    <OutputType>Library</OutputType>
-    <PlatformTarget>x64</PlatformTarget>
-
-    <!-- Keep the initial scripts compatible with older C# syntax. -->
-    <LangVersion>7.3</LangVersion>
-    <Nullable>disable</Nullable>
-    <ImplicitUsings>disable</ImplicitUsings>
-
-    <!-- Enables editor-only class declarations in our action files. -->
-    <DefineConstants>$(DefineConstants);EXTERNAL_EDITOR</DefineConstants>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <!-- Build-time framework definitions; not deployed to Streamer.bot. -->
-    <PackageReference
-      Include="Microsoft.NETFramework.ReferenceAssemblies.net481"
-      Version="1.0.3"
-      PrivateAssets="all"
+    <!-- Each developer supplies their own Streamer.bot installation path. -->
+    <Import
+        Project="StreamerBot.local.props"
+        Condition="Exists('StreamerBot.local.props')"
     />
 
-    <Reference Include="System.Data" />
+    <PropertyGroup>
+        <!-- Match the framework used by our verified Streamer.bot setup. -->
+        <TargetFramework>net481</TargetFramework>
+        <OutputType>Library</OutputType>
+        <PlatformTarget>x64</PlatformTarget>
 
-    <!-- Use the APIs from the developer's installed Streamer.bot. -->
-    <Reference Include="Streamer.bot.Plugin.Interface">
-      <HintPath>$(StreamerBotPath)/Streamer.bot.Plugin.Interface.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+        <!-- Keep the initial scripts compatible with older C# syntax. -->
+        <LangVersion>7.3</LangVersion>
+        <Nullable>disable</Nullable>
+        <ImplicitUsings>disable</ImplicitUsings>
 
-    <Reference Include="Streamer.bot.Common">
-      <HintPath>$(StreamerBotPath)/Streamer.bot.Common.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+        <!-- Enables editor-only class declarations in our action files. -->
+        <DefineConstants>$(DefineConstants);EXTERNAL_EDITOR</DefineConstants>
+    </PropertyGroup>
 
-    <Reference Include="Twitch.Common">
-      <HintPath>$(StreamerBotPath)/Twitch.Common.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <ItemGroup>
+        <!-- Build-time framework definitions; not deployed to Streamer.bot. -->
+        <PackageReference
+            Include="Microsoft.NETFramework.ReferenceAssemblies.net481"
+            Version="1.0.3"
+            PrivateAssets="all"
+        />
 
-    <!-- Match the SQLite library already tested inside Streamer.bot. -->
-    <Reference Include="System.Data.SQLite">
-      <HintPath>$(StreamerBotPath)/dlls/System.Data.SQLite.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-  </ItemGroup>
+        <Reference Include="System.Data" />
 
-  <!-- Give developers clear instructions when local setup is missing. -->
-  <Target Name="ValidateLocalSetup" BeforeTargets="ResolveReferences">
-    <Error
-      Condition="'$(StreamerBotPath)' == ''"
-      Text="Copy StreamerBot.local.props.example to StreamerBot.local.props and set StreamerBotPath."
-    />
-    <Error
-      Condition="!Exists('$(StreamerBotPath)/Streamer.bot.Plugin.Interface.dll')"
-      Text="Streamer.bot.Plugin.Interface.dll was not found. Check StreamerBotPath."
-    />
-    <Error
-      Condition="!Exists('$(StreamerBotPath)/dlls/System.Data.SQLite.dll')"
-      Text="System.Data.SQLite.dll was not found. Follow docs/SQLITE_SETUP.md."
-    />
-  </Target>
+        <!-- Use the APIs from the developer's installed Streamer.bot. -->
+        <Reference Include="Streamer.bot.Plugin.Interface">
+            <HintPath>$(StreamerBotPath)/Streamer.bot.Plugin.Interface.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+
+        <Reference Include="Streamer.bot.Common">
+            <HintPath>$(StreamerBotPath)/Streamer.bot.Common.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+
+        <Reference Include="Twitch.Common">
+            <HintPath>$(StreamerBotPath)/Twitch.Common.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+
+        <!-- Use the JSON library supplied with Streamer.bot. -->
+        <Reference Include="Newtonsoft.Json">
+            <HintPath>$(StreamerBotPath)/Newtonsoft.Json.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+
+        <!-- Match the SQLite library already tested inside Streamer.bot. -->
+        <Reference Include="System.Data.SQLite">
+            <HintPath>$(StreamerBotPath)/dlls/System.Data.SQLite.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
+
+    <!-- Give developers clear instructions when local setup is missing. -->
+    <Target Name="ValidateLocalSetup" BeforeTargets="ResolveReferences">
+        <Error
+            Condition="'$(StreamerBotPath)' == ''"
+            Text="Copy StreamerBot.local.props.example to StreamerBot.local.props and set StreamerBotPath."
+        />
+        <Error
+            Condition="!Exists('$(StreamerBotPath)/Streamer.bot.Plugin.Interface.dll')"
+            Text="Streamer.bot.Plugin.Interface.dll was not found. Check StreamerBotPath."
+        />
+        <Error
+            Condition="!Exists('$(StreamerBotPath)/dlls/System.Data.SQLite.dll')"
+            Text="System.Data.SQLite.dll was not found. Follow docs/SQLITE_SETUP.md."
+        />
+    </Target>
 </Project>
