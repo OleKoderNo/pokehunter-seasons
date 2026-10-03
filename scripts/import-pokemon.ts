@@ -1,113 +1,65 @@
-import { getPokeApiResource, isJsonObject } from "./lib/pokeapi.js";
-import type { JsonObject } from "./lib/pokeapi.js";
+import { mkdir, writeFile } from "node:fs/promises";
+import { getPokeApiResource } from "./lib/pokeapi.js";
+import { createPikachuEntries } from "./lib/create-pikachu-entries.js";
 
-interface SampleSummary {
-  speciesName: string;
-  types: string[];
-  hasGenderDifferences: boolean;
-  assets: {
-    normalSprite: boolean;
-    femaleSprite: boolean;
-    shinySprite: boolean;
-    shinyFemaleSprite: boolean;
-    latestCry: boolean;
-    legacyCry: boolean;
-  };
-}
+// The compiled script lives in dist/, one level below the project root.
+const SAMPLE_DIRECTORY = new URL("../data/samples/", import.meta.url);
+const SAMPLE_FILE = new URL("pikachu.json", SAMPLE_DIRECTORY);
 
 /**
- * Reports whether an optional asset field contains a non-empty string.
+ * Generates a sample containing regular Pikachu's four collection entries.
  *
- * This checks reference presence, not whether the URL is reachable.
- */
-function hasAssetReference(container: unknown, field: string): boolean {
-  if (!isJsonObject(container)) {
-    return false;
-  }
-
-  const value = container[field];
-
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function createSummary(
-  pokemon: JsonObject,
-  species: JsonObject,
-): SampleSummary {
-  const speciesReference = pokemon.species;
-  const typeRecords = pokemon.types;
-
-  if (
-    typeof species.name !== "string" ||
-    typeof species.has_gender_differences !== "boolean" ||
-    !isJsonObject(speciesReference) ||
-    speciesReference.name !== species.name ||
-    !Array.isArray(typeRecords) ||
-    typeRecords.length === 0
-  ) {
-    throw new Error("Pikachu source data is missing expected fields.");
-  }
-
-  const types = typeRecords.map((item: unknown): string => {
-    if (
-      !isJsonObject(item) ||
-      !isJsonObject(item.type) ||
-      typeof item.type.name !== "string"
-    ) {
-      throw new Error("Pikachu source data contains an invalid type.");
-    }
-
-    return item.type.name;
-  });
-
-  return {
-    speciesName: species.name,
-    types,
-    hasGenderDifferences: species.has_gender_differences,
-    assets: {
-      normalSprite: hasAssetReference(pokemon.sprites, "front_default"),
-      femaleSprite: hasAssetReference(pokemon.sprites, "front_female"),
-      shinySprite: hasAssetReference(pokemon.sprites, "front_shiny"),
-      shinyFemaleSprite: hasAssetReference(
-        pokemon.sprites,
-        "front_shiny_female",
-      ),
-      latestCry: hasAssetReference(pokemon.cries, "latest"),
-      legacyCry: hasAssetReference(pokemon.cries, "legacy"),
-    },
-  };
-}
-
-/**
- * Downloads and summarizes a small source-data sample.
- *
- * This does not generate collection entries or a playable catalogue yet.
+ * The sample is separate from the future production catalogue.
  */
 async function main(): Promise<void> {
   const pokemon = await getPokeApiResource("pokemon", "pikachu");
   const species = await getPokeApiResource("pokemon-species", "pikachu");
 
-  const summary = createSummary(pokemon, species);
+  const entries = createPikachuEntries(pokemon, species);
 
-  console.log("\nPikachu source data is ready.");
-  console.log(`Species: ${summary.speciesName}`);
-  console.log(`Types: ${summary.types.join(", ")}`);
-  console.log(`Visible gender differences: ${summary.hasGenderDifferences}`);
+  // Guard against accidentally producing duplicate collection identities.
+  const uniqueIds = new Set(entries.map((entry) => entry.id));
 
-  console.table(summary.assets);
+  if (entries.length !== 4 || uniqueIds.size !== 4) {
+    throw new Error("Expected exactly four unique Pikachu entries.");
+  }
 
-  console.log("Cached responses are in .cache/pokeapi/.");
-  console.log("No game catalogue or player data was changed.");
+  const sample = {
+    schemaVersion: 1,
+    sampleOnly: true,
+    entries,
+  };
+
+  await mkdir(SAMPLE_DIRECTORY, { recursive: true });
+  await writeFile(SAMPLE_FILE, `${JSON.stringify(sample, null, 2)}\n`, "utf8");
+
+  console.table(
+    entries.map((entry) => ({
+      id: entry.id,
+      gender: entry.gender,
+      shiny: entry.isShiny,
+      spriteAvailable: entry.sprite.url !== null,
+    })),
+  );
+
+  for (const entry of entries) {
+    if (entry.sprite.url === null) {
+      console.warn(`[missing sprite] ${entry.id}`);
+    }
+  }
+
+  console.log(`\nGenerated ${entries.length} collection entries.`);
+  console.log("Saved data/samples/pikachu.json");
+  console.log("This is a sample, not the complete game catalogue.");
 }
 
-// Catch failures at the entry point and signal an unsuccessful run.
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
 
-  console.error(`\nError: ${message}`);
+  console.error(`\nImport failed: ${message}`);
 
   if (error instanceof Error && error.cause !== undefined) {
-    console.error(`Cause: ${error.cause}`);
+    console.error("Cause:", error.cause);
   }
 
   process.exitCode = 1;

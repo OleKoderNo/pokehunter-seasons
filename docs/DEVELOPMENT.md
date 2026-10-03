@@ -6,9 +6,19 @@ This guide explains how to run and develop the project's tools.
 
 The importer is written in TypeScript.
 
-Its first milestone downloads and caches Pikachu source data.
-It does not yet generate `data/pokemon.json`, create collection entries,
-or connect to Streamer.bot.
+It downloads or reads cached Pikachu source data and generates four
+regular Pikachu collection entries:
+
+- Normal male.
+- Normal female.
+- Shiny male.
+- Shiny female.
+
+The output is saved to `data/samples/pikachu.json`.
+
+This is an entry sample, not the complete catalogue described in
+`DATA_MODEL.md`. It does not contain the species, family, or encounter
+group records required by the full game.
 
 The planned Streamer.bot catching action will use C#.
 
@@ -174,11 +184,45 @@ It does not yet enforce the complete catalogue rules in `DATA_MODEL.md`.
 
 Full catalogue validation will be added alongside catalogue generation.
 
+## Generated Pikachu sample
+
+Run:
+
+`npm run import:sample`
+
+The command compiles the tools, reads or downloads the source data,
+and replaces `data/samples/pikachu.json`.
+
+The generated sample contains four permanent collection IDs:
+
+- `pikachu:male:normal`
+- `pikachu:female:normal`
+- `pikachu:male:shiny`
+- `pikachu:female:shiny`
+
+Each entry contains its gender, shiny state, types, form metadata,
+and available sprite and cry references.
+
+Missing media references are stored as `null`.
+Entries are not removed because artwork is missing.
+
+The converter checks required source fields and rejects malformed
+media references. It does not download images or audio to verify
+that the referenced files are reachable.
+
+The sample output should be committed as a reviewable example.
+Do not edit it manually; regenerate it through the importer.
+
+### Additional source files
+
+| File                                    | Responsibility                                        |
+| --------------------------------------- | ----------------------------------------------------- |
+| `scripts/types/catalogue.ts`            | Defines the collection entry structure                |
+| `scripts/lib/create-pikachu-entries.ts` | Converts regular Pikachu into four collection entries |
+
 ## Next milestone
 
-Convert cached Pikachu source data into separate normal and shiny
-collection entries for its indexed genders.
+Expand source parsing and generation beyond regular Pikachu.
 
-The importer will eventually generate the local catalogue used by
-Streamer.bot. Live redemptions will not need to request Pokémon data
-from PokéAPI.
+The full catalogue will also include species records, complete evolution
+families, encounter groups, and validation of references between them.

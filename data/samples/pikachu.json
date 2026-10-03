@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "sampleOnly": true,
+  "entries": [
+    {
+      "id": "pikachu:male:normal",
+      "speciesId": "pikachu",
+      "encounterGroupId": "pikachu",
+      "formId": "pikachu",
+      "displayName": "Pikachu",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "male",
+      "hasGenderDifference": true,
+      "isShiny": false,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/25.ogg"
+      }
+    },
+    {
+      "id": "pikachu:female:normal",
+      "speciesId": "pikachu",
+      "encounterGroupId": "pikachu",
+      "formId": "pikachu",
+      "displayName": "Pikachu",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "female",
+      "hasGenderDifference": true,
+      "isShiny": false,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/female/25.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/25.ogg"
+      }
+    },
+    {
+      "id": "pikachu:male:shiny",
+      "speciesId": "pikachu",
+      "encounterGroupId": "pikachu",
+      "formId": "pikachu",
+      "displayName": "Pikachu",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "male",
+      "hasGenderDifference": true,
+      "isShiny": true,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/25.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/25.ogg"
+      }
+    },
+    {
+      "id": "pikachu:female:shiny",
+      "speciesId": "pikachu",
+      "encounterGroupId": "pikachu",
+      "formId": "pikachu",
+      "displayName": "Pikachu",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "female",
+      "hasGenderDifference": true,
+      "isShiny": true,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/female/25.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/25.ogg"
+      }
+    }
+  ]
+}
