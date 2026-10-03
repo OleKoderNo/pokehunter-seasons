@@ -6,6 +6,7 @@ This document explains how to customize the game using:
 
 - `config/game.json` — redemption settings, shiny bonuses, and encounter weights.
 - `config/seasons.json` — season schedules and generation unlocks.
+- `config/events.json` — event schedules, themed Pokémon, costumes, and event weights.
 
 The configuration loader and game logic are not implemented yet.
 Creating or editing this file alone does not change Streamer.bot or Twitch.
@@ -703,3 +704,436 @@ not delete Pokémon viewers have already caught.
 
 Editing the configuration does not move existing catches between seasons.
 Their recorded season IDs remain unchanged.
+
+## Event configuration
+
+`config/events.json` defines scheduled events and their themed Pokémon.
+
+Events can temporarily expand the available roster without changing
+the season's permanent generation unlocks.
+
+Creating this file alone does not activate an event in Streamer.bot.
+The event loader and encounter logic still need to be implemented.
+
+### `schemaVersion`
+
+The version of the event configuration structure.
+
+Initial value: `1`.
+
+### `timeZone`
+
+The named time zone used for the event calendar.
+
+Default: `Europe/Oslo`.
+
+As with seasons, timestamps include explicit UTC offsets. Their offsets
+must match the chosen time zone on those dates.
+
+### `events`
+
+The list of configured events.
+
+Each event has its own identity, schedule, settings, and roster selectors.
+
+An event is active when:
+
+```text
+enabled is true
+AND startsAt <= redemption acceptance time < endsAtExclusive
+```
+
+Use the same accepted event settings throughout a redemption, even if
+the event ends while its attempts are being processed.
+
+### `events[].id`
+
+The permanent identifier recorded with event-related catches.
+
+Example: `halloween-2026`.
+
+Use a new ID for each scheduled occurrence, such as `halloween-2027`.
+
+Do not rename an ID after catches have been recorded against it.
+Keep past event definitions so catch history retains its context.
+
+### `events[].name`
+
+The event's display name.
+
+Example: `Halloween 2026`.
+
+You can rename the display label without changing its ID.
+
+### `events[].enabled`
+
+Whether the event is allowed to activate during its schedule.
+
+- `true`: follow the configured dates.
+- `false`: keep the event disabled.
+
+Enabling an event does not override its dates.
+
+Disabling an event does not delete previously caught Pokémon.
+
+### `events[].startsAt`
+
+The instant the event begins, including that instant.
+
+### `events[].endsAtExclusive`
+
+The first instant that no longer belongs to the event.
+
+The initial Halloween event runs through all of October:
+
+```text
+Start: October 1, 2026 at midnight
+End:   November 1, 2026 at midnight, exclusive
+```
+
+The timestamps use different offsets because Oslo changes from summer
+time to winter time during October.
+
+Dates are explicit. The event does not automatically repeat next year.
+
+### `events[].categoryWeight`
+
+The relative weight of the Event encounter category.
+
+Default for Halloween: `4`.
+
+Each eligible ordinary type has the weight configured in
+`config/game.json`, initially `1`.
+
+With 18 eligible ordinary types:
+
+```text
+Total weight = 18 + 4 = 22
+Event category probability = 4 / 22
+```
+
+This is not a flat 4% probability or a guaranteed fourfold increase
+for every event Pokémon.
+
+Event Pokémon also appear in their eligible ordinary type categories.
+
+If `categoryWeight` is omitted, use the default Event category weight
+from `config/game.json`.
+
+Use a finite number greater than zero. To disable an event, set
+`enabled` to `false` instead of setting its weight to zero.
+
+### Overlapping events
+
+For the initial implementation, enabled event schedules must not overlap.
+
+This keeps one Event category and one event weight active at a time.
+The loader must reject overlapping enabled schedules with a clear error.
+
+Supporting simultaneous events would require an additional rule for
+combining their rosters and category weights.
+
+### Generation settings
+
+These settings govern the event roster. They do not remove Pokémon
+already available through the season.
+
+#### `allowLockedGenerations`
+
+Default: `true`.
+
+Allows selected event Pokémon from generations not normally unlocked
+in the current season.
+
+Set this to `false` to restrict the event roster to unlocked generations.
+
+#### `requireUnlockedGenerationForLegendary`
+
+Default: `true`.
+
+A Legendary Pokémon must belong to an unlocked generation to enter the
+event roster, even if it matches a selector.
+
+An already-unlocked Legendary can still match the event and appear
+in the Event category.
+
+#### `requireUnlockedGenerationForMythical`
+
+Default: `true`.
+
+Applies the same restriction to Mythical Pokémon.
+
+Setting either restriction to `false` permits matching Pokémon of that
+classification from locked generations only when
+`allowLockedGenerations` is also `true`.
+
+Generation checks use the included form's introduction generation.
+
+## Selecting event Pokémon
+
+The `include` object supports four ways of selecting Pokémon:
+
+- `types`: match actual Pokémon types.
+- `evolutionFamilies`: include complete evolution families.
+- `forms`: select individual non-costume forms.
+- `costumes`: select specific event-only costumes.
+
+Selectors are combined as a union: matching any selector is enough.
+Generation restrictions are applied afterward.
+
+Matching multiple selectors does not create extra copies in the same
+encounter category.
+
+An empty selector array selects nothing.
+
+### `include.types`
+
+Includes supported non-costume forms with any listed type.
+
+Example:
+
+```json
+"types": ["ghost"]
+```
+
+This includes Ghost-type forms, including dual types.
+
+It does not automatically include their non-Ghost evolution relatives.
+Use an evolution-family selector when you want the whole family.
+
+Costumes require explicit selection through `include.costumes`.
+
+### `include.evolutionFamilies`
+
+Includes the full evolution family containing each named species.
+
+This includes:
+
+- Earlier evolutions.
+- Later evolutions.
+- Branching evolutions.
+- Supported non-costume forms of those family members.
+
+For example:
+
+```json
+"evolutionFamilies": ["cubone"]
+```
+
+Includes Cubone and Marowak, including Alolan Marowak.
+
+You only need one species reference per family. Listing both Spinarak
+and Ariados would not make that family more common.
+
+Family selection does not automatically include costumes.
+
+### `include.forms`
+
+Includes specific supported non-costume forms without adding their
+whole family or other forms.
+
+Example:
+
+```json
+"forms": ["morpeko-hangry"]
+```
+
+This selects Hangry Mode for the event.
+
+It does not add Full Belly Mode to the event roster. Full Belly Mode
+can still be available normally if its generation is unlocked.
+
+### `include.costumes`
+
+Includes individual event-only costumes.
+
+The initial Halloween roster contains all five selected ORAS costumes:
+
+```json
+"costumes": [
+  "pikachu-rock-star",
+  "pikachu-belle",
+  "pikachu-pop-star",
+  "pikachu-phd",
+  "pikachu-libre"
+]
+```
+
+Pokémon GO-exclusive costumes are outside the initial catalogue scope.
+
+Selecting a costume does not automatically select its evolution family
+or unlock its regular form.
+
+A regular variant participates only when it is independently available
+through the season or event.
+
+### Gender and shiny variants
+
+Selectors automatically cover all supported indexed genders and both
+normal and shiny entries.
+
+Do not duplicate selectors for male, female, normal, or shiny variants.
+
+Every included form and costume may be shiny in this game, even when
+its shiny is unavailable in the official games.
+
+Only supported genders are generated. The selected ORAS costumes are
+female-only; no male counterparts should be invented.
+
+### Costume selection
+
+Costumes join their Pokémon's encounter group instead of becoming
+separate entries in the initial Pokémon selection.
+
+After selecting the group:
+
+1. Perform the applicable gender roll.
+2. Give the available regular variant one variant entry.
+3. Give each active, incomplete costume one variant entry.
+4. Select one variant with equal weights.
+5. Apply missing-gender protection if the selected variant is a costume.
+
+For a group with an available regular variant and eight incomplete costumes:
+
+```text
+Regular variant: 1 / 9
+Any costume:     8 / 9
+```
+
+An owned regular variant remains an option and can fail as a duplicate.
+
+An entirely collected costume is removed from variant selection for
+the current normal or shiny state.
+
+If a costume has only one missing gender, award that missing gender.
+One successful redemption still awards only one entry.
+
+## Tutorial: Customize an event
+
+### 1. Choose the event to edit
+
+Open `config/events.json`.
+
+Find the relevant object inside the `events` array.
+
+To create a new event, copy an existing event object and give the copy
+a new unique ID.
+
+### 2. Set its name and dates
+
+Change:
+
+- `id` for a new event.
+- `name` for its display label.
+- `startsAt` for its beginning.
+- `endsAtExclusive` for its ending.
+
+Use the first instant after the event as its exclusive end.
+
+For example, an event ending after October 31 should use midnight
+on November 1.
+
+Check UTC offsets for the dates you choose.
+
+### 3. Choose its Pokémon
+
+Edit the four arrays inside `include`.
+
+Examples:
+
+- Keep `"ghost"` in `types` to include Ghost types.
+- Remove a family name to stop selecting that full family.
+- Add a supported form ID to `forms` for a specific form.
+- Add a supported costume ID to `costumes` for an event-only costume.
+
+Use `[]` for a selector you do not need:
+
+```json
+"costumes": []
+```
+
+Removing a selector only removes that reason for inclusion. A Pokémon
+can still match another selector.
+
+For example, removing a family reference does not exclude a Ghost-type
+member if `"ghost"` remains selected.
+
+The initial configuration has no explicit exclusion list.
+
+### 4. Choose generation behavior
+
+For the project's default behavior, keep:
+
+```json
+"allowLockedGenerations": true,
+"requireUnlockedGenerationForLegendary": true,
+"requireUnlockedGenerationForMythical": true
+```
+
+For an event restricted entirely to unlocked generations, change
+`allowLockedGenerations` to `false`.
+
+### 5. Adjust the Event category weight
+
+Change `categoryWeight` to make selection of the Event category more
+or less likely relative to ordinary types.
+
+A larger weight increases its share of the category roll.
+
+It does not change shiny probability, rarity-class weights, or costume
+variant weights.
+
+### 6. Enable and validate it
+
+Set `enabled` to `true` when the event is ready to follow its schedule.
+
+Before accepting redemptions, validation must check:
+
+- IDs are non-empty and unique.
+- Names are non-empty.
+- Boolean settings contain `true` or `false`.
+- Dates and UTC offsets are valid.
+- Each start is earlier than its exclusive end.
+- Enabled event schedules do not overlap.
+- Category weights are finite and greater than zero.
+- Every selector references a supported catalogue identifier.
+- Form selectors and costume selectors use the correct category.
+
+Unknown identifiers must produce a clear error rather than silently
+omitting Pokémon.
+
+The available identifier reference will be documented when the
+catalogue is generated.
+
+## What happens when an event ends?
+
+Event-dependent availability stops for new redemptions.
+
+- Pokémon still eligible through the season remain available.
+- Pokémon requiring the event leave the encounter pools.
+- Event-only costumes leave variant selection.
+- Previously caught entries remain in both Dex records as applicable.
+- Historical event information remains attached to catches.
+
+Event activation can reopen a previously completed type category when
+it introduces missing entries.
+
+Completion is always checked against the current eligible roster,
+separately for normal and shiny entries.
+
+## Event information in catch history
+
+Record:
+
+- The active event ID, if any.
+- Whether the caught entry matched the event roster.
+- The category used for the encounter.
+- The season ID and redemption acceptance timestamp.
+
+An event Pokémon caught through its ordinary type category still
+counts as matching the event roster.
+
+A regular Pokémon caught while an event is active is not automatically
+an event-roster catch.
+
+December's roster and schedule will be added separately.

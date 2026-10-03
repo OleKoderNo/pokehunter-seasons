@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "timeZone": "Europe/Oslo",
+  "events": [
+    {
+      "id": "halloween-2026",
+      "name": "Halloween 2026",
+      "enabled": true,
+      "startsAt": "2026-10-01T00:00:00+02:00",
+      "endsAtExclusive": "2026-11-01T00:00:00+01:00",
+      "categoryWeight": 4,
+      "allowLockedGenerations": true,
+      "requireUnlockedGenerationForLegendary": true,
+      "requireUnlockedGenerationForMythical": true,
+      "include": {
+        "types": ["ghost"],
+        "evolutionFamilies": [
+          "houndoom",
+          "zoroark",
+          "absol",
+          "hatterene",
+          "mawile",
+          "grimmsnarl",
+          "spinarak",
+          "cubone",
+          "murkrow",
+          "gothitelle",
+          "dipplin",
+          "swirlix",
+          "delphox",
+          "sableye"
+        ],
+        "forms": ["morpeko-hangry"],
+        "costumes": [
+          "pikachu-rock-star",
+          "pikachu-belle",
+          "pikachu-pop-star",
+          "pikachu-phd",
+          "pikachu-libre"
+        ]
+      }
+    }
+  ]
+}
