@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "scripts",
+    "outDir": "dist",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "noEmitOnError": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["scripts/**/*.ts", "import-pokemon.ts"],
+  "exclude": ["node_modules", "dist"]
+}

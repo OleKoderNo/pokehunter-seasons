@@ -1,0 +1,9 @@
+# Downloaded API responses.
+.cache/
+cache/
+
+# Installed dependencies.
+node_modules/
+
+# Compiled JavaScript.
+dist/
