@@ -7,3 +7,9 @@ node_modules/
 
 # Compiled JavaScript.
 dist/
+
+# Local player storage and runtime files.
+runtime/
+
+# Local database and configuration backups.
+backups/
