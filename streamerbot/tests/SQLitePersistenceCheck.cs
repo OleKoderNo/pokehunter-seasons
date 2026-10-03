@@ -2,13 +2,26 @@ using System;
 using System.Data.SQLite;
 using System.IO;
 
+// VS Code needs an explicit base class and a unique action class name.
+// Streamer.bot uses its standard CPHInline declaration.
+#if EXTERNAL_EDITOR
+public class SQLitePersistenceCheck
+    : Streamer.bot.Plugin.Interface.CPHInlineBase
+#else
 public class CPHInline
+#endif
 {
     // Change this to the folder containing your project's README.
     private const string ProjectFolder =
         @"C:\Users\ohfb9\Documents\Coding\Private\Streaming\pokehunter-seasons";
 
+    // Explicitly hide the base method when compiling in the external editor.
+    // Keep Streamer.bot's standard method declaration when pasted there.
+#if EXTERNAL_EDITOR
+    public new bool Execute()
+#else
     public bool Execute()
+#endif
     {
         try
         {

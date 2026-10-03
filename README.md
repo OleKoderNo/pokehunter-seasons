@@ -91,6 +91,7 @@ Additional requirements and installation instructions will be documented as deve
 ## Documentation
 
 - [SQLite setup and persistence test](docs/SQLITE_SETUP.md)
+- [C# development setup](docs/CSHARP_DEVELOPMENT.md)
 
 ## Credits
 

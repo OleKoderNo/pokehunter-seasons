@@ -13,3 +13,8 @@ runtime/
 
 # Local database and configuration backups.
 backups/
+
+# C# build output and machine-specific settings
+streamerbot/**/bin/
+streamerbot/**/obj/
+streamerbot/StreamerBot.local.props

@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Copy this file to StreamerBot.local.props and edit the path. -->
+    <StreamerBotPath>C:\Tools\Streamer.bot</StreamerBotPath>
+  </PropertyGroup>
+</Project>

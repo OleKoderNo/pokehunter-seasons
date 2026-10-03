@@ -15,3 +15,8 @@ data/
 
 # Managed by npm.
 package-lock.json
+
+# C# build output and machine-specific settings
+streamerbot/**/bin/
+streamerbot/**/obj/
+streamerbot/StreamerBot.local.props
