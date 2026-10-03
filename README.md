@@ -49,10 +49,22 @@ This project is being built from scratch. The features below describe the planne
 ### On-stream catch overlay
 
 - An optional OBS overlay celebrating successful catches.
-- Displays the viewer’s name alongside the caught Pokémon’s sprite and name.
-- Supports form, gender, and shiny information.
-- Queues catch notifications so multiple viewers’ catches appear in order.
-- Configurable display duration and styling.
+- Displays the viewer’s name first, followed by
+  “Caught a [Pokémon name]!”
+- Animates the caught Pokémon’s sprite upward from below into
+  position beneath the text.
+- Plays the Pokémon’s cry once when the sprite appears.
+- Gently moves the sprite up and down while the notification
+  remains visible.
+- Displays the appropriate sprite for the caught form, gender,
+  and shiny variant where available.
+- Clearly identifies shiny catches in the announcement.
+- Queues catch notifications so each appears individually,
+  without overlapping animations or cries.
+- Supports configurable styling, display duration, animation
+  speed, movement distance, and audio volume.
+- Allows Pokémon cries to be muted.
+- Continues displaying the catch if its audio is unavailable.
 
 ### Future website support
 
