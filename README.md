@@ -8,7 +8,9 @@ Originally created for the KapteinOle community, the project is also intended to
 
 **In development.**
 
-This project is being built from scratch. The features below describe the planned behaviour and are not yet implemented.
+This project is being built from scratch. A sample Pokémon data importer
+and a SQLite persistence test are working. The gameplay features below
+are planned and are not yet implemented.
 
 ## Planned features
 
@@ -85,6 +87,10 @@ Creators will be able to adjust encounter weights, shiny bonuses, season schedul
 - Pokémon data generated from PokéAPI
 
 Additional requirements and installation instructions will be documented as development progresses.
+
+## Documentation
+
+- [SQLite setup and persistence test](docs/SQLITE_SETUP.md)
 
 ## Credits
 
