@@ -226,3 +226,110 @@ Expand source parsing and generation beyond regular Pikachu.
 
 The full catalogue will also include species records, complete evolution
 families, encounter groups, and validation of references between them.
+
+## Code quality and formatting
+
+The project uses:
+
+- TypeScript for static type checking.
+- ESLint with typescript-eslint for code-quality checks.
+- Prettier for consistent source and documentation formatting.
+- EditorConfig for shared editor settings.
+
+These are development tools. They do not run during streams.
+
+### Install dependencies
+
+After cloning the repository, run:
+
+```bash
+npm ci
+```
+
+Use the project-local tool versions recorded in `package-lock.json`.
+
+TypeScript is currently pinned to `5.9.3` for compatibility with the
+selected typescript-eslint release. Review their supported versions
+together before upgrading.
+
+Commit `package.json` and `package-lock.json` together when dependencies
+change.
+
+### Check the project
+
+```bash
+npm run check
+```
+
+This runs type checking, linting, and formatting checks in order.
+It stops when a check fails.
+
+The command does not modify source files or download Pokémon data.
+
+These checks do not replace runtime tests or catalogue validation.
+
+### Format files
+
+```bash
+npm run format
+```
+
+This formats supported source files, configuration, and documentation.
+
+Generated catalogues, cached responses, compiled output, player data,
+and backups are excluded.
+
+Review the Git diff after formatting.
+
+To check formatting without changing files:
+
+```bash
+npm run format:check
+```
+
+### Lint source code
+
+```bash
+npm run lint
+```
+
+To apply supported automatic fixes:
+
+```bash
+npm run lint:fix
+```
+
+Review automatic changes before committing. Some problems require
+manual fixes.
+
+Do not disable rules just to hide an unexplained error.
+
+### Editor integration
+
+VS Code users can optionally install:
+
+- ESLint, published by Microsoft.
+- Prettier - Code formatter, published by Prettier.
+
+Use the project's installed Prettier version and configuration.
+
+Editor extensions are optional. The npm commands provide the shared
+checks for everyone working on the project.
+
+### Tool coverage
+
+ESLint currently checks TypeScript files inside `scripts/` and root
+`.mjs` configuration files.
+
+Prettier formats supported handwritten files, including JSON and Markdown.
+
+C# formatting, analysis, and compilation checks will be configured
+when the Streamer.bot implementation is added.
+
+### Before committing
+
+1. Run `npm run lint:fix`.
+2. Run `npm run format`.
+3. Run `npm run check`.
+4. Review the changes.
+5. Run relevant behavior checks for any code you changed.

@@ -1,0 +1,17 @@
+# Dependencies and compiled JavaScript.
+node_modules/
+dist/
+
+# Downloaded API responses.
+.cache/
+cache/
+
+# Player data and backups.
+runtime/
+backups/
+
+# Generated catalogue files use the importer's formatting.
+data/
+
+# Managed by npm.
+package-lock.json

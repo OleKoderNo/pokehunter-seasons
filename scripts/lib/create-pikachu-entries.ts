@@ -109,27 +109,25 @@ export function createPikachuEntries(
     },
   ] as const;
 
-  return variants.map(
-    ({ gender, isShiny, spriteField }): CollectionEntry => ({
-      id: `pikachu:${gender}:${isShiny ? "shiny" : "normal"}`,
-      speciesId: "pikachu",
-      encounterGroupId: "pikachu",
-      formId: "pikachu",
-      displayName: "Pikachu",
-      formName: null,
-      regionalForm: null,
-      gender,
-      hasGenderDifference: true,
-      isShiny,
-      isCostume: false,
-      eventOnly: false,
-      introducedGeneration: 1,
-      types: [...types],
-      sprite: {
-        url: readAssetUrl(pokemon.sprites, spriteField),
-        fallbackUrl: null,
-      },
-      cries: { ...cries },
-    }),
-  );
+  return variants.map(({ gender, isShiny, spriteField }): CollectionEntry => ({
+    id: `pikachu:${gender}:${isShiny ? "shiny" : "normal"}`,
+    speciesId: "pikachu",
+    encounterGroupId: "pikachu",
+    formId: "pikachu",
+    displayName: "Pikachu",
+    formName: null,
+    regionalForm: null,
+    gender,
+    hasGenderDifference: true,
+    isShiny,
+    isCostume: false,
+    eventOnly: false,
+    introducedGeneration: 1,
+    types: [...types],
+    sprite: {
+      url: readAssetUrl(pokemon.sprites, spriteField),
+      fallbackUrl: null,
+    },
+    cries: { ...cries },
+  }));
 }
