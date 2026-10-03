@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "layout": {
+    "canvasWidth": 1920,
+    "canvasHeight": 1080,
+    "positionX": 960,
+    "positionY": 180,
+    "width": 720,
+    "textGapPixels": 12,
+    "spriteGapPixels": 24
+  },
+  "text": {
+    "usernameTemplate": "{displayName}",
+    "catchTemplate": "Caught a {pokemonName}!",
+    "shinyCatchTemplate": "Caught a shiny {pokemonName}!",
+    "fontFamily": "Arial, sans-serif",
+    "usernameFontSizePixels": 48,
+    "messageFontSizePixels": 36,
+    "usernameColor": "#FFFFFF",
+    "messageColor": "#FFFFFF",
+    "shinyMessageColor": "#FFD700",
+    "shadowColor": "#000000",
+    "shadowBlurPixels": 6
+  },
+  "sprite": {
+    "sizePixels": 192,
+    "pixelated": true,
+    "fallbackLabel": "Sprite unavailable"
+  },
+  "animation": {
+    "usernameEnterMilliseconds": 250,
+    "messageDelayMilliseconds": 250,
+    "spriteDelayMilliseconds": 500,
+    "spriteRiseMilliseconds": 600,
+    "spriteRiseDistancePixels": 120,
+    "holdMilliseconds": 4000,
+    "exitMilliseconds": 400,
+    "bobEnabled": true,
+    "bobDistancePixels": 6,
+    "bobCycleMilliseconds": 1200
+  },
+  "audio": {
+    "enabled": true,
+    "volume": 0.5,
+    "preferredCry": "latest",
+    "fallbackCry": "legacy",
+    "maxPlaybackMilliseconds": 5000
+  },
+  "queue": {
+    "gapMilliseconds": 300
+  }
+}

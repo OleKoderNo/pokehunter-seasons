@@ -7,6 +7,7 @@ This document explains how to customize the game using:
 - `config/game.json` — redemption settings, shiny bonuses, and encounter weights.
 - `config/seasons.json` — season schedules and generation unlocks.
 - `config/events.json` — event schedules, themed Pokémon, costumes, and event weights.
+- `config/catch-overlay.json` — catch notification appearance, animation, audio, and display queue.
 
 The configuration loader and game logic are not implemented yet.
 Creating or editing this file alone does not change Streamer.bot or Twitch.
@@ -1137,3 +1138,471 @@ A regular Pokémon caught while an event is active is not automatically
 an event-roster catch.
 
 December's roster and schedule will be added separately.
+
+## Overlay configuration
+
+`config/catch-overlay.json` controls the planned OBS catch overlay.
+
+The overlay displays successful catches after they have been saved.
+It does not control encounter probabilities or collection progress.
+
+The browser overlay and its connection to Streamer.bot are not
+implemented yet. This file defines the settings they will use.
+
+### `schemaVersion`
+
+The version of the overlay configuration structure.
+
+Initial value: `1`.
+
+### `enabled`
+
+Whether to show catch notifications.
+
+Default: `true`.
+
+Set this to `false` to disable both overlay visuals and cries.
+Catching, saving progress, and chat announcements continue normally.
+
+Notifications received while disabled are not replayed when re-enabled.
+
+## Overlay layout
+
+### `layout.canvasWidth` and `layout.canvasHeight`
+
+The overlay's design dimensions in pixels.
+
+Defaults: `1920` by `1080`.
+
+Use the same dimensions for the OBS Browser Source.
+The page background remains transparent.
+
+### `layout.positionX` and `layout.positionY`
+
+The position of the notification within the overlay canvas.
+
+- `positionX` is the horizontal center of the notification.
+- `positionY` is the top of the notification.
+
+Coordinates start at the top-left corner of the canvas.
+
+Defaults:
+
+```text
+positionX = 960
+positionY = 180
+```
+
+On a 1920-pixel-wide canvas, `960` centers the notification horizontally.
+
+Increase `positionX` to move it right. Decrease it to move it left.
+Increase `positionY` to move it down. Decrease it to move it up.
+
+### `layout.width`
+
+The maximum notification width in pixels.
+
+Default: `720`.
+
+Text is centered and wraps within this width.
+Long names must not overflow the notification.
+
+### `layout.textGapPixels`
+
+The vertical space between the username and catch message.
+
+Default: `12`.
+
+### `layout.spriteGapPixels`
+
+The vertical space between the catch message and the sprite's resting
+position.
+
+Default: `24`.
+
+The sprite appears below the text. Its entrance animation does not move
+the username or catch message.
+
+## Overlay text
+
+### Text templates
+
+The templates control the wording:
+
+```json
+"usernameTemplate": "{displayName}",
+"catchTemplate": "Caught a {pokemonName}!",
+"shinyCatchTemplate": "Caught a shiny {pokemonName}!"
+```
+
+Supported placeholders:
+
+| Placeholder     | Meaning                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------- |
+| `{displayName}` | The viewer's Twitch display name                                                        |
+| `{pokemonName}` | The caught Pokémon's display name, including its named form or costume where applicable |
+
+The shiny template is used only for shiny catches.
+
+Example customization:
+
+```json
+"catchTemplate": "Added {pokemonName} to the team!"
+```
+
+Keep placeholder spelling and capitalization unchanged.
+
+Templates and substituted values must be displayed as plain text,
+not interpreted as HTML.
+
+### Font settings
+
+- `text.fontFamily`: CSS font family or fallback list.
+- `text.usernameFontSizePixels`: username font size.
+- `text.messageFontSizePixels`: catch message font size.
+
+The default font setting is `Arial, sans-serif`.
+
+Changing the font name does not download or bundle a font.
+A custom font must be available to the browser overlay.
+
+### Color settings
+
+- `text.usernameColor`: username text color.
+- `text.messageColor`: normal catch message color.
+- `text.shinyMessageColor`: shiny catch message color.
+- `text.shadowColor`: text shadow color.
+
+Use six-digit hexadecimal colors, such as `#FFFFFF`.
+
+`text.shadowBlurPixels` controls how soft the text shadow appears.
+Set it to `0` to disable the shadow.
+
+## Sprite settings
+
+### `sprite.sizePixels`
+
+The width and height of the sprite's display box.
+
+Default: `192`.
+
+Fit the image inside this box while preserving its aspect ratio.
+Do not stretch the Pokémon to fill the box.
+
+### `sprite.pixelated`
+
+Whether to use crisp pixel-style scaling.
+
+Default: `true`.
+
+Set it to `false` for smooth image scaling.
+
+### `sprite.fallbackLabel`
+
+The visible label used when the correct sprite is unavailable.
+
+Default: `Sprite unavailable`.
+
+Use the caught entry's form, gender, and shiny sprite when available.
+
+Any substitute image must be visibly identified as a fallback.
+If no usable image exists, show the label in the sprite area.
+
+A missing image must not prevent the username, catch message, or next
+notification from displaying.
+
+## Animation settings
+
+### Entrance timeline
+
+All entrance delays are measured from the start of the notification.
+
+With the defaults:
+
+1. At 0 milliseconds, the username begins its pop-in animation.
+2. At 250 milliseconds, the catch message appears.
+3. At 500 milliseconds, the sprite starts rising into position.
+4. At 1100 milliseconds, the sprite reaches its resting position.
+5. The completed notification stays visible for 4000 milliseconds.
+6. The notification exits over 400 milliseconds.
+
+The default visual sequence lasts 5500 milliseconds.
+The queue then waits 300 milliseconds before starting the next notification.
+
+### `animation.usernameEnterMilliseconds`
+
+The duration of the username's pop-in animation.
+
+Default: `250`.
+
+### `animation.messageDelayMilliseconds`
+
+How long after notification start the catch message appears.
+
+Default: `250`.
+
+### `animation.spriteDelayMilliseconds`
+
+How long after notification start the sprite entrance begins.
+
+Default: `500`.
+
+The cry is triggered once when this entrance begins.
+
+### `animation.spriteRiseMilliseconds`
+
+How long the sprite takes to rise into its resting position.
+
+Default: `600`.
+
+### `animation.spriteRiseDistancePixels`
+
+How far below its resting position the sprite starts.
+
+Default: `120`.
+
+The sprite rises within the notification area. This value does not mean
+it starts at the bottom edge of the entire OBS canvas.
+
+Increase it for a longer upward entrance.
+
+### `animation.holdMilliseconds`
+
+How long the fully entered notification remains visible before exiting.
+
+Default: `4000`.
+
+The hold starts after all entrance steps have finished.
+
+Calculate its starting time as:
+
+```text
+hold starts at the largest of:
+
+usernameEnterMilliseconds
+messageDelayMilliseconds
+spriteDelayMilliseconds + spriteRiseMilliseconds
+```
+
+### `animation.exitMilliseconds`
+
+The duration of the notification's exit fade.
+
+Default: `400`.
+
+### Bobbing animation
+
+After the sprite finishes rising, it gently moves vertically.
+
+- `animation.bobEnabled`: turns bobbing on or off.
+- `animation.bobDistancePixels`: maximum displacement above or below its resting position.
+- `animation.bobCycleMilliseconds`: duration of one complete up-and-down cycle.
+
+Defaults:
+
+```text
+bobEnabled = true
+bobDistancePixels = 6
+bobCycleMilliseconds = 1200
+```
+
+A distance of `6` produces 12 pixels of total travel between the highest
+and lowest positions.
+
+Increase the cycle duration for slower movement.
+Decrease the distance for subtler movement.
+
+The text remains stationary.
+
+Bobbing works with a static sprite; an animated image is not required.
+
+## Cry audio
+
+### `audio.enabled`
+
+Whether to play a cry for each displayed catch.
+
+Default: `true`.
+
+Set this to `false` to keep the visual notification without sound.
+
+### `audio.volume`
+
+Playback volume from `0` to `1`.
+
+Examples:
+
+| Value  | Volume |
+| ------ | ------ |
+| `0`    | Muted  |
+| `0.25` | 25%    |
+| `0.5`  | 50%    |
+| `1`    | 100%   |
+
+Default: `0.5`.
+
+OBS audio settings can further affect the audible volume.
+
+### `audio.preferredCry` and `audio.fallbackCry`
+
+Which catalogue cry references to try.
+
+Defaults:
+
+```json
+"preferredCry": "latest",
+"fallbackCry": "legacy"
+```
+
+Allowed values are `latest` and `legacy`.
+
+Try the preferred reference first. If it is missing or cannot start
+playing, try the fallback reference.
+
+If neither works, continue the notification silently.
+
+Play at most one successful cry per notification. Do not loop it.
+
+### `audio.maxPlaybackMilliseconds`
+
+The maximum permitted cry playback duration.
+
+Default: `5000`.
+
+Stop audio at this limit or when the notification finishes,
+whichever comes first.
+
+A delayed audio load must not start playing after its notification ends.
+
+## Notification queue
+
+### `queue.gapMilliseconds`
+
+The pause between one notification finishing and the next starting.
+
+Default: `300`.
+
+Display successful catches one at a time in arrival order.
+Finish the current notification and stop its audio before starting
+the next one.
+
+The overlay queue is separate from game processing.
+Other viewers can catch Pokémon while a notification is showing.
+
+Deduplicate notifications using the saved catch identifier so repeated
+delivery does not announce the same catch twice.
+
+## Tutorial: Customize the overlay
+
+### 1. Open the configuration
+
+Open `config/catch-overlay.json`.
+
+The examples below show individual settings to edit inside the existing
+file. They are not replacements for the entire configuration.
+
+### 2. Move the notification
+
+Edit `layout.positionX` and `layout.positionY`.
+
+For example, on the default 1920-by-1080 canvas:
+
+```json
+"positionX": 960,
+"positionY": 500
+```
+
+This keeps it horizontally centered and places its top farther down.
+
+Leave enough room beneath it for the message, sprite, and entrance motion.
+
+### 3. Change the size
+
+Adjust:
+
+- `text.usernameFontSizePixels` for the viewer's name.
+- `text.messageFontSizePixels` for the catch message.
+- `sprite.sizePixels` for the Pokémon.
+- `layout.width` for text wrapping.
+
+For example, change `sprite.sizePixels` from `192` to `256`
+to display a larger Pokémon.
+
+### 4. Change the wording and colors
+
+Edit the text templates and color settings.
+
+Keep `{displayName}` and `{pokemonName}` wherever you want those values
+to appear.
+
+Keep an explicit shiny announcement in the shiny template so viewers
+can identify a shiny catch without relying on color alone.
+
+### 5. Adjust the movement
+
+For gentler bobbing, edit these settings inside `animation`:
+
+```json
+"bobDistancePixels": 3,
+"bobCycleMilliseconds": 1800
+```
+
+To disable bobbing:
+
+```json
+"bobEnabled": false
+```
+
+To make the notification stay longer, increase `holdMilliseconds`.
+For example, `6000` means six seconds after the entrance completes.
+
+Keep `messageDelayMilliseconds` at or after the username entrance
+finishes, and `spriteDelayMilliseconds` at or after the message appears,
+to preserve the intended username → message → sprite sequence.
+
+### 6. Adjust the sound
+
+For quieter cries, change this setting inside `audio`:
+
+```json
+"volume": 0.25
+```
+
+To disable cries entirely, change this setting inside `audio`:
+
+```json
+"enabled": false
+```
+
+The top-level `enabled` setting has a different purpose:
+it disables the entire overlay.
+
+### 7. Check the settings
+
+Before loading the overlay, validate that:
+
+- Boolean settings contain `true` or `false`.
+- Canvas dimensions, notification width, sprite size, and font sizes are positive.
+- Positions fit within the configured canvas.
+- Gaps, distances, delays, and animation durations are non-negative.
+- Pixel and millisecond values are finite whole numbers.
+- The bob cycle is greater than zero when bobbing is enabled.
+- Audio volume is a finite number between `0` and `1`.
+- Maximum audio playback duration is greater than zero.
+- Cry preferences use supported values.
+- Colors use valid six-digit hexadecimal values.
+- Templates contain only supported placeholders.
+
+Check the result visually for clipping, wrapping, and readability.
+
+Preview and reload instructions will be added when the browser overlay
+is implemented.
+
+## Overlay failures
+
+A catch must be saved before sending its notification.
+
+An overlay connection failure, missing sprite, or failed cry does not
+undo the catch or change the viewer's retry streak.
+
+Log display failures separately from gameplay failures.
