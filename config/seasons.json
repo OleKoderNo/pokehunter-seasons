@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "timeZone": "Europe/Oslo",
+  "seasons": [
+    {
+      "id": "season-1",
+      "name": "Season 1",
+      "startsAt": "2026-10-03T00:00:00+02:00",
+      "endsAtExclusive": "2027-01-01T00:00:00+01:00",
+      "unlockedGenerations": [1]
+    },
+    {
+      "id": "season-2",
+      "name": "Season 2",
+      "startsAt": "2027-01-01T00:00:00+01:00",
+      "endsAtExclusive": "2028-01-01T00:00:00+01:00",
+      "unlockedGenerations": [1, 2]
+    },
+    {
+      "id": "season-3",
+      "name": "Season 3",
+      "startsAt": "2028-01-01T00:00:00+01:00",
+      "endsAtExclusive": "2029-01-01T00:00:00+01:00",
+      "unlockedGenerations": [1, 2, 3]
+    }
+  ]
+}

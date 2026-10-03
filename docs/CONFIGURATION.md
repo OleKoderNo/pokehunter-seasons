@@ -2,7 +2,11 @@
 
 PokéHunter Seasons separates editable settings from the catching logic.
 
-This document describes the intended behavior of `config/game.json`.
+This document explains how to customize the game using:
+
+- `config/game.json` — redemption settings, shiny bonuses, and encounter weights.
+- `config/seasons.json` — season schedules and generation unlocks.
+
 The configuration loader and game logic are not implemented yet.
 Creating or editing this file alone does not change Streamer.bot or Twitch.
 
@@ -289,3 +293,413 @@ The following behavior is defined in [Game Rules](GAME_RULES.md):
 
 Season schedules, event rosters, and overlay settings will have their
 own configuration files.
+
+## Season configuration
+
+`config/seasons.json` defines the season schedule and generation unlocks.
+
+The game determines the active season from the current time. There is no
+manually maintained active-season setting.
+
+### `schemaVersion`
+
+The version of the season configuration structure.
+
+Initial value: `1`.
+
+This is independent of the season number.
+
+### `timeZone`
+
+The named time zone used for the season calendar and human-readable dates.
+
+Default: `Europe/Oslo`.
+
+Each timestamp also includes an explicit UTC offset. This makes the exact
+transition instant unambiguous.
+
+For the configured dates:
+
+- `+02:00` represents Oslo summer time.
+- `+01:00` represents Oslo winter time.
+
+Changing `timeZone` alone does not change the timestamps. When customizing
+the schedule, update the timestamps and their offsets to match the chosen
+time zone.
+
+### `seasons`
+
+The list of explicitly configured seasons.
+
+Each season must have:
+
+- A unique, permanent ID.
+- A display name.
+- A start timestamp.
+- An exclusive end timestamp.
+- A list of unlocked generations.
+
+Keep the list in chronological order for readability.
+
+### `seasons[].id`
+
+The permanent identifier stored with catches and seasonal progress.
+
+Examples: `season-1`, `season-2`.
+
+Do not rename an ID after catches have been recorded against it.
+Changing an ID could separate existing records from their season.
+
+### `seasons[].name`
+
+The human-readable season name.
+
+Examples: `Season 1`, `Season 2`.
+
+This can be changed without changing the season's identity.
+
+### `seasons[].startsAt`
+
+The instant the season becomes active, including that instant.
+
+The initial Season 1 start date is provisional. Set it to the intended
+launch date before accepting real catches.
+
+### `seasons[].endsAtExclusive`
+
+The instant the season stops being active.
+
+A season is active when:
+
+```text
+startsAt <= current time < endsAtExclusive
+```
+
+For example:
+
+```text
+Season 1 ends:   2027-01-01T00:00:00+01:00
+Season 2 starts: 2027-01-01T00:00:00+01:00
+```
+
+A redemption accepted exactly at this timestamp belongs to Season 2.
+
+Using the next season's start as the previous season's exclusive end
+avoids gaps and overlapping boundary timestamps.
+
+### `seasons[].unlockedGenerations`
+
+The generations normally available during the season.
+
+Examples:
+
+```json
+[1]
+```
+
+Allows Generation 1.
+
+```json
+[1, 2]
+```
+
+Allows Generations 1 and 2.
+
+Each season lists its full set of unlocked generations explicitly.
+The game does not infer unlocks from the season number or automatically
+inherit the previous season's list.
+
+Generation availability uses the included form's introduction generation,
+not just the original species' generation.
+
+For example, unlocking Generation 1 does not normally unlock Alolan forms.
+
+Active events can temporarily allow selected forms from locked generations,
+subject to the event rules.
+
+Legendary and Mythical Pokémon require their generation to be unlocked,
+even when they match an event.
+
+Costumes remain event-only regardless of generation unlocks.
+
+### Initial schedule
+
+| Season   | Start                         | End, exclusive  | Generations |
+| -------- | ----------------------------- | --------------- | ----------- |
+| Season 1 | October 3, 2026 — provisional | January 1, 2027 | 1           |
+| Season 2 | January 1, 2027               | January 1, 2028 | 1–2         |
+| Season 3 | January 1, 2028               | January 1, 2029 | 1–3         |
+
+All boundaries use local midnight in Europe/Oslo.
+
+Season 1 is a shortened launch season. Later configured seasons cover
+a full calendar year.
+
+### Season transitions
+
+At the start of a new season:
+
+- The viewer begins a fresh Seasonal Dex.
+- The viewer's seasonal retry streak starts at zero.
+- Previous seasons remain available as archives.
+- National Dex catch history and totals remain intact.
+- Lifetime unique-entry and shiny bonuses remain intact.
+
+A season transition must not delete or overwrite old catches.
+
+Seasonal collections and retry streaks must be associated with their
+season ID, so old progress can remain stored without carrying forward.
+
+The per-viewer redemption cooldown is independent of the season and
+does not reset at a season boundary.
+
+### Redemptions crossing a season boundary
+
+Use the acceptance timestamp to select the redemption's season.
+
+All attempts within that redemption use the same season, even if processing
+finishes after the next season begins.
+
+Record this season ID with the redemption so retries after a technical
+error cannot move it into a different season.
+
+Any resulting catch or retry-streak change belongs to that recorded season.
+
+### Adding future seasons
+
+Before the final configured season ends:
+
+1. Add a new season with a new permanent ID.
+2. Set its start to the previous season's exclusive end.
+3. Set its exclusive end.
+4. List every generation that should be unlocked.
+5. Validate the updated schedule.
+
+Keep previous season definitions so archived records retain their context.
+
+New seasons are not created automatically after the configured schedule ends.
+
+### Validation and missing seasons
+
+Before accepting redemptions, validate that:
+
+- Season IDs are non-empty and unique.
+- Display names are non-empty.
+- Timestamps are valid and include explicit UTC offsets.
+- Timestamp offsets match the configured time zone at those dates.
+- Each start is earlier than its exclusive end.
+- Seasons do not overlap.
+- Consecutive seasons meet at the same boundary.
+- Generation lists are non-empty and contain no duplicates.
+- Generation values are positive integers supported by the catalogue.
+
+If no season is active, catching is unavailable. Do not silently fall back
+to an old season or invent a new one.
+
+The integration should pause the reward where possible and clearly log the
+problem. Any redemption that still arrives follows the documented
+no-refund policy and does not alter the viewer's retry streak.
+
+## Tutorial: Customize your seasons
+
+You can change season names, dates, lengths, and available generations.
+Seasons do not have to last a year.
+
+Make these changes in `config/seasons.json`.
+
+### 1. Choose your schedule
+
+Decide:
+
+- When your first season starts.
+- How long each season lasts.
+- Which generations each season allows.
+- Which time zone you use.
+
+For example, you could have:
+
+- One season per calendar year.
+- A new season every three months.
+- Seasons starting on your streaming anniversary.
+
+The dates control season length. There is no separate duration setting.
+
+### 2. Set your time zone
+
+Find this property near the top of the file:
+
+```json
+"timeZone": "Europe/Oslo"
+```
+
+Replace it with the appropriate named time zone if necessary, such as:
+
+- `Europe/London`
+- `America/New_York`
+- `Asia/Singapore`
+
+Keep this property inside double quotes.
+
+The timestamps must also use the correct UTC offset for that time zone
+on each date. Changing the time-zone name does not automatically rewrite
+the timestamps.
+
+### 3. Give the season an ID and a name
+
+Each object inside the `seasons` array represents one season.
+
+```json
+"id": "season-1",
+"name": "Season 1"
+```
+
+The ID links saved catches to their season. Choose it before launching
+and keep it unchanged once catches have been recorded.
+
+The name is the display label. You can customize it:
+
+```json
+"id": "season-1",
+"name": "The Kanto Adventure"
+```
+
+Changing the display name does not reset progress or create a new season.
+
+To start a fresh Seasonal Dex, add a new season with a new ID.
+
+### 4. Set when the season starts and ends
+
+Example:
+
+```json
+"startsAt": "2027-01-01T00:00:00+01:00",
+"endsAtExclusive": "2027-04-01T00:00:00+02:00"
+```
+
+This season runs from January 1 through March 31 in Europe/Oslo.
+
+The timestamp format is:
+
+```text
+YYYY-MM-DDTHH:mm:ss±HH:mm
+```
+
+Its parts are:
+
+- `2027-01-01`: the date, written as year-month-day.
+- `T`: separates the date from the time.
+- `00:00:00`: midnight, using a 24-hour clock.
+- `+01:00`: the UTC offset for this date.
+
+The example uses different offsets because Oslo is on winter time in
+January and summer time in April.
+
+`endsAtExclusive` is the first instant that no longer belongs to the
+season. To include all of March 31, use midnight on April 1.
+
+Do not use `23:59:59` as the end of the season.
+
+### 5. Choose the available generations
+
+Edit `unlockedGenerations`:
+
+| Value       | Available generations   |
+| ----------- | ----------------------- |
+| `[1]`       | Generation 1            |
+| `[1, 2]`    | Generations 1 and 2     |
+| `[1, 2, 3]` | Generations 1, 2, and 3 |
+| `[3]`       | Generation 3 only       |
+| `[1, 3]`    | Generations 1 and 3     |
+
+Each season has its own complete list.
+
+For example, Season 2 does not automatically include Generation 1.
+You must include `1` in its list if you want that generation available.
+
+Only use generations supported by your Pokémon catalogue.
+
+Regional and other forms use their own introduction generation.
+Costumes still require an active event.
+
+### 6. Add the next season
+
+Copy an existing season object and paste it inside the `seasons` array.
+
+Then:
+
+1. Give it a new unique ID.
+2. Set its display name.
+3. Set its start to exactly the previous season's end.
+4. Choose its new end date.
+5. Set its available generations.
+
+Separate season objects with a comma. Do not put a comma after the
+last object in the array.
+
+### Complete example: Two three-month seasons
+
+This example replaces the entire contents of `config/seasons.json`.
+It demonstrates a different schedule; it is not the project's default.
+
+```json
+{
+  "schemaVersion": 1,
+  "timeZone": "Europe/Oslo",
+  "seasons": [
+    {
+      "id": "season-1",
+      "name": "The Kanto Adventure",
+      "startsAt": "2027-01-01T00:00:00+01:00",
+      "endsAtExclusive": "2027-04-01T00:00:00+02:00",
+      "unlockedGenerations": [1]
+    },
+    {
+      "id": "season-2",
+      "name": "Journey to Johto",
+      "startsAt": "2027-04-01T00:00:00+02:00",
+      "endsAtExclusive": "2027-07-01T00:00:00+02:00",
+      "unlockedGenerations": [1, 2]
+    }
+  ]
+}
+```
+
+The first season covers January through March.
+The second season covers April through June.
+
+At midnight on April 1, new accepted redemptions belong to Season 2.
+
+A third season must be configured before July 1 to continue catching
+without a break.
+
+### 7. Check your changes
+
+Before using your schedule, confirm:
+
+- Every season has a different ID.
+- Each end is later than its start.
+- Each following season starts exactly when the previous one ends.
+- UTC offsets are correct for the chosen dates and time zone.
+- Generation lists contain everything you intend to allow.
+- The file has no missing commas, extra commas, or comments.
+
+The configuration loader will also need to validate these rules.
+Runtime reload instructions will be documented when that loader is
+implemented.
+
+### Changing a schedule after launch
+
+Back up your configuration and player data before changing a live schedule.
+
+- You may rename a season without changing its ID.
+- You may extend the current season by moving its end and the next
+  season's start to the same new timestamp.
+- Avoid changing boundaries that have already passed.
+- Do not rename or reuse IDs belonging to recorded seasons.
+- Keep old season objects so archived catches retain their context.
+
+Changing generation availability affects future encounters. It must
+not delete Pokémon viewers have already caught.
+
+Editing the configuration does not move existing catches between seasons.
+Their recorded season IDs remain unchanged.
