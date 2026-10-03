@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "redemption": {
+    "cost": 500,
+    "perUserCooldownSeconds": 60
+  },
+  "shiny": {
+    "baseOddsDenominator": 8192,
+    "collectionBonus": {
+      "uniqueEntriesPerMilestone": 50,
+      "bonusPerUniqueEntryMilestone": 0.1,
+      "uniqueShiniesPerMilestone": 10,
+      "bonusPerShinyMilestone": 0.05
+    },
+    "subscriberMultipliers": {
+      "none": 1,
+      "prime": 2,
+      "tier1": 2,
+      "tier2": 2.5,
+      "tier3": 3.5
+    }
+  },
+  "encounters": {
+    "categoryWeights": {
+      "type": 1,
+      "event": 4
+    },
+    "rarityWeights": {
+      "common": 10,
+      "uncommon": 6,
+      "rare": 3,
+      "ultraRare": 1
+    }
+  }
+}
