@@ -59,6 +59,15 @@
         </Reference>
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- These classes are now compiled by the shared library project.
+             Also exclude that project's generated C# files. -->
+        <Compile Remove="configuration/**/*.cs" />
+
+        <!-- Build the shared library and make its classes available here. -->
+        <ProjectReference Include="configuration/PokeHunter.Core.csproj" />
+    </ItemGroup>
+
     <!-- Give developers clear instructions when local setup is missing. -->
     <Target Name="ValidateLocalSetup" BeforeTargets="ResolveReferences">
         <Error

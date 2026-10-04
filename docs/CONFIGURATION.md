@@ -9,12 +9,12 @@ This document explains how to customize the game using:
 - `config/events.json` — event schedules, themed Pokémon, costumes, and event weights.
 - `config/catch-overlay.json` — catch notification appearance, animation, audio, and display queue.
 
-The loader and value validator for `config/game.json` are implemented
-and have passed initial standalone checks.
+The loader and value validator for `config/game.json` are implemented.
+They have passed initial standalone checks and a manual configuration
+check inside Streamer.bot using the shared `PokeHunter.Core.dll` library.
 
-Configuration loading is not yet connected to a live Streamer.bot
-catching action. Editing these files does not currently change Twitch
-rewards or live gameplay.
+The manual check reads and validates settings, then logs the results.
+It does not update Twitch rewards or run the catching game.
 
 Loaders for the season, event, and overlay configuration files are not
 implemented yet.

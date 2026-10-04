@@ -24,10 +24,9 @@
             <Private>true</Private>
         </Reference>
 
-        <!-- Compile the real configuration code, without copying its source. -->
-        <Compile
-            Include="../../streamerbot/configuration/*.cs"
-            Link="Configuration/%(Filename)%(Extension)"
+        <!-- Test the shared library used by the Streamer.bot integration. -->
+        <ProjectReference
+            Include="../../streamerbot/configuration/PokeHunter.Core.csproj"
         />
     </ItemGroup>
 </Project>

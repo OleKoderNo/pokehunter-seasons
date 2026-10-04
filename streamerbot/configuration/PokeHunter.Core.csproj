@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Reuse the installation path configured for this developer. -->
+    <Import
+        Project="../StreamerBot.local.props"
+        Condition="Exists('../StreamerBot.local.props')"
+    />
+
+    <PropertyGroup>
+        <!-- Match the framework verified inside Streamer.bot. -->
+        <TargetFramework>net481</TargetFramework>
+        <OutputType>Library</OutputType>
+        <PlatformTarget>x64</PlatformTarget>
+
+        <LangVersion>7.3</LangVersion>
+        <Nullable>disable</Nullable>
+        <ImplicitUsings>disable</ImplicitUsings>
+
+        <!-- The compiled library will be named PokeHunter.Core.dll. -->
+        <AssemblyName>PokeHunter.Core</AssemblyName>
+        <RootNamespace>PokeHunter</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Framework definitions used when compiling the project. -->
+        <PackageReference
+            Include="Microsoft.NETFramework.ReferenceAssemblies.net481"
+            Version="1.0.3"
+            PrivateAssets="all"
+        />
+
+        <!-- Streamer.bot supplies this dependency when running the library. -->
+        <Reference Include="Newtonsoft.Json">
+            <HintPath>$(StreamerBotPath)/Newtonsoft.Json.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
+
+    <Target Name="ValidateLocalSetup" BeforeTargets="ResolveReferences">
+        <Error
+            Condition="'$(StreamerBotPath)' == ''"
+            Text="Set StreamerBotPath in streamerbot/StreamerBot.local.props."
+        />
+        <Error
+            Condition="!Exists('$(StreamerBotPath)/Newtonsoft.Json.dll')"
+            Text="Newtonsoft.Json.dll was not found. Check StreamerBotPath."
+        />
+    </Target>
+</Project>
