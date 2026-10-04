@@ -5,7 +5,7 @@ using System.IO;
 namespace PokeHunter.Configuration
 {
     /// <summary>
-    /// Checks season configuration values and scheduling rules.
+    /// Checks season configuration values and schedule continuity.
     /// Does not modify the supplied configuration.
     /// </summary>
     public static class SeasonsConfigValidator
@@ -23,6 +23,8 @@ namespace PokeHunter.Configuration
                 "schemaVersion must be 1."
             );
 
+            // Named time-zone resolution is handled separately.
+            // This check only requires a nonempty, unpadded value.
             RequireText(config.TimeZone, "timeZone");
 
             Require(
@@ -72,13 +74,13 @@ namespace PokeHunter.Configuration
                 );
             }
 
-            // Only check overlaps after every individual season is valid.
-            ValidateNoOverlaps(config.Seasons);
+            // Only check schedule continuity after every season is valid.
+            ValidateContinuousSchedule(config.Seasons);
         }
 
         /// <summary>
         /// Requires a nonempty list of distinct, positive generation numbers.
-        /// Catalogue support for those generations is checked separately.
+        /// This does not verify availability in the Pokémon catalogue.
         /// </summary>
         private static void ValidateGenerations(
             List<int> generations,
@@ -110,13 +112,15 @@ namespace PokeHunter.Configuration
         }
 
         /// <summary>
-        /// Checks boundaries in chronological order without changing
-        /// the order of seasons in the original configuration.
+        /// Requires consecutive seasons to meet at exactly the same instant.
+        /// Rejects overlaps and gaps between configured seasons.
+        /// Does not create seasons beyond the configured schedule.
         /// </summary>
-        private static void ValidateNoOverlaps(
+        private static void ValidateContinuousSchedule(
             List<SeasonDefinition> seasons
         )
         {
+            // Sort a copy so the original configuration order is preserved.
             var orderedSeasons = new List<SeasonDefinition>(seasons);
 
             orderedSeasons.Sort(
@@ -128,12 +132,22 @@ namespace PokeHunter.Configuration
                 SeasonDefinition previous = orderedSeasons[index - 1];
                 SeasonDefinition current = orderedSeasons[index];
 
-                // Equality is allowed: the previous season ends exactly
-                // when the next begins. An earlier start is an overlap.
+                // A start before the previous end creates an overlap.
+                // Keep this error separate so the problem is clear.
                 Require(
                     current.StartsAt >= previous.EndsAtExclusive,
                     "Season '" + current.Id +
                     "' overlaps season '" + previous.Id + "'."
+                );
+
+                // Once overlaps are excluded, anything other than equality
+                // means there is a gap between these two seasons.
+                Require(
+                    current.StartsAt == previous.EndsAtExclusive,
+                    "Gap between season '" + previous.Id +
+                    "' and season '" + current.Id +
+                    "'. Each season must start exactly when the previous " +
+                    "season ends."
                 );
             }
         }

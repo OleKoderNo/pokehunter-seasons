@@ -34,6 +34,7 @@ internal static class Program
             // Keep both groups active as new checks are added.
             GameConfigurationChecks.Run(args[0], temporaryFolder);
             SeasonConfigurationChecks.Run(args[1], temporaryFolder);
+            SeasonSelectionChecks.Run();
 
             Console.WriteLine("All configuration checks passed.");
             return 0;
