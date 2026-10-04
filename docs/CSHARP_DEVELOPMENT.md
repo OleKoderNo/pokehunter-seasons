@@ -74,7 +74,8 @@ Action source files are copied into Execute C# Code sub-actions.
 streamerbot/configuration/PokeHunter.Core.csproj
 ```
 
-This project currently compiles the reusable configuration classes into:
+This project compiles the reusable game and season configuration
+classes into:
 
 ```text
 PokeHunter.Core.dll
@@ -94,11 +95,14 @@ compiling the configuration classes a second time.
 tests/configuration/ConfigurationChecks.csproj
 ```
 
-This project builds a small executable that tests configuration loading
-outside Streamer.bot.
+This project builds a small executable that tests game and season
+configuration loading outside Streamer.bot.
 
-It references the shared-library project, so the checks use the same
-implementation as the Streamer.bot configuration-check action.
+It references the shared-library project, so the checks exercise the
+shared implementation.
+
+The existing game configuration checks remain active alongside the
+season checks.
 
 ## 3. Build the C# projects
 
@@ -207,12 +211,7 @@ You can also format the open file manually with **Shift + Alt + F**.
 After a successful build:
 
 1. Close Streamer.bot.
-2. Open this folder inside your repository:
-
-   ```text
-   streamerbot/configuration/bin/Debug/net481/
-   ```
-
+2. Open `streamerbot/configuration/bin/Debug/net481/` in your repository.
 3. Copy `PokeHunter.Core.dll`.
 4. Paste it into the `dlls` folder inside your Streamer.bot installation.
 5. Reopen Streamer.bot.
@@ -250,29 +249,103 @@ Editing the source file does not automatically update the pasted action.
 Copying a DLL into Streamer.bot's installation folder and adding it as
 an action reference are separate steps.
 
-## Configuration loading and checks
+## Configuration loading
 
-The game configuration code is in `streamerbot/configuration/`:
+The configuration code is in `streamerbot/configuration/` and is
+compiled into `PokeHunter.Core.dll`.
 
-- `GameConfig.cs` describes the settings structure.
+### Shared configuration support
+
 - `RequiredConfigContractResolver.cs` maps property names to camelCase
   and requires configuration properties to be present and non-null.
-- `GameConfigLoader.cs` reads the JSON file, deserializes it, and calls
+- `ExplicitOffsetDateTimeConverter.cs` reads timestamps that include
+  an explicit UTC offset or `Z`.
+
+Unknown JSON properties are rejected to help catch misspelled settings.
+Invalid settings are reported rather than silently replaced with defaults.
+
+### Game configuration
+
+- `GameConfig.cs` describes the structure of `config/game.json`.
+- `GameConfigLoader.cs` reads the JSON, deserializes it, and calls
   the validator.
 - `GameConfigValidator.cs` checks the supported schema version and
   numerical rules.
 
-These classes are compiled into `PokeHunter.Core.dll`.
+Game configuration loading has passed initial standalone checks and
+a manual check inside Streamer.bot.
 
-Unknown JSON properties are rejected to help catch misspelled settings.
-The loader reports invalid settings rather than silently substituting
-defaults.
+### Season configuration
 
-Configuration loading has passed initial standalone checks and a manual
-check inside Streamer.bot. It is not yet connected to a live catching
-action.
+- `SeasonsConfig.cs` describes the structure of `config/seasons.json`
+  and its individual season definitions.
+- `SeasonsConfigLoader.cs` reads the JSON, applies the timestamp
+  converter, and calls the validator.
+- `SeasonsConfigValidator.cs` checks required values, unique season IDs,
+  generation lists, and season boundaries.
 
-### Run the standalone configuration checks
+Season configuration loading has passed initial standalone checks.
+
+The validator requires:
+
+- Schema version `1`.
+- A nonempty time-zone name.
+- At least one season.
+- Nonempty IDs and display names without surrounding whitespace.
+- Unique season IDs, compared without regard to capitalization.
+- An ending instant later than the starting instant.
+- Nonempty generation lists containing distinct positive integers.
+- Season schedules that do not overlap.
+
+Gaps between seasons are allowed. Annual durations and cumulative
+generation unlocks are not hardcoded requirements.
+
+Generation availability against the Pokémon catalogue is not checked yet.
+
+### Season timestamps
+
+Season boundaries use `DateTimeOffset`, preserving the timestamp's
+explicit UTC offset.
+
+Accepted examples include:
+
+```text
+2027-01-01T00:00:00+01:00
+2026-12-31T23:00:00Z
+```
+
+These examples represent the same instant. `Z` means UTC.
+
+Timestamps must include seconds and an explicit offset or `Z`.
+Up to seven fractional-second digits are also supported.
+
+A timestamp without an offset is rejected:
+
+```text
+2027-01-01T00:00:00
+```
+
+This prevents configuration loading from silently relying on the
+computer's local time zone.
+
+Season starts are inclusive and season ends are exclusive. One season
+may end at exactly the instant another begins.
+
+The current validator checks that the named time zone is supplied,
+but does not yet resolve it or verify that timestamp offsets match
+that zone's rules.
+
+### Current implementation limits
+
+Active-season selection and named time-zone resolution are not yet
+implemented.
+
+Season loading has not yet been added to a manual Streamer.bot action.
+The existing manual configuration check loads only `config/game.json`.
+
+Configuration loading is not connected to a live catching action.
+
+## Run the standalone configuration checks
 
 From the repository root, build the standalone test program:
 
@@ -285,26 +358,60 @@ This also builds its referenced shared-library project.
 After a successful build, run:
 
 ```powershell
-& ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json"
+& ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json" ".\config\seasons.json"
 ```
 
-The checks verify that:
+The executable requires two arguments, in this order:
+
+1. The path to `game.json`.
+2. The path to `seasons.json`.
+
+### What the checks verify
 
 1. The supplied game configuration loads successfully.
-2. A temporary copy with a zero unique-entry milestone size is rejected
-   for the expected reason.
+2. A zero unique-entry milestone size is rejected for the expected reason.
+3. The supplied season configuration loads successfully.
+4. Adjoining seasons with equivalent timestamps and different offsets
+   are accepted, and the supplied offset is preserved.
+5. Overlapping seasons are rejected.
+6. A timestamp without an explicit UTC offset is rejected.
 
-The original configuration file is not modified.
+The original configuration files are not modified.
+
+The invalid game example uses a temporary copy of the supplied game
+configuration.
+
+Season boundary tests use a fixed example schedule. This keeps the tests
+independent of changes to the creator's real season schedule.
 
 The program returns exit code `0` on success and `1` on failure.
 Temporary test files are removed after execution when possible.
 
 The standalone executable needs Newtonsoft.Json beside it, so its
-project reference to that dependency uses `Private=true`.
+assembly reference to that dependency uses `Private=true`.
 
 These checks do not yet cover every validation rule.
 
-### Create the manual Streamer.bot configuration check
+### Expected output
+
+With the repository's current default settings:
+
+```text
+PASS: The real game configuration loaded.
+Reward cost: 500 | Cooldown: 60 seconds
+PASS: A zero milestone size was rejected.
+PASS: The real season configuration loaded.
+Configured seasons: 3 | Time zone: Europe/Oslo
+PASS: Adjoining seasons with equivalent timestamps were accepted.
+PASS: Overlapping seasons were rejected.
+PASS: A timestamp without an explicit offset was rejected.
+All configuration checks passed.
+```
+
+Reported settings and season counts will reflect your configuration
+if you customize the files.
+
+## Create the manual Streamer.bot configuration check
 
 First, build and install the shared library as described above.
 
@@ -336,17 +443,21 @@ The action also logs the configuration file path.
 This confirms that Streamer.bot can load the shared library and use it
 to read and validate `config/game.json`.
 
-The action does not change Twitch rewards, enforce cooldowns, or perform
-encounters.
+The action does not load seasons, change Twitch rewards, enforce
+cooldowns, or perform encounters.
 
-### Test locations
+## Test locations
 
 - `streamerbot/tests/` contains manual test actions executed inside
   Streamer.bot.
 - `tests/configuration/` contains the standalone configuration checks.
 
-Both the manual configuration-check action and the standalone checks
-use the shared configuration implementation.
+The manual game configuration check and the standalone checks use
+the shared configuration implementation.
+
+Existing checks should remain active when new checks are added.
+They help detect regressions: changes that break previously working
+behaviour.
 
 ## Applying later changes
 
@@ -357,13 +468,16 @@ The update procedure depends on what changed.
 For changes to the configuration classes:
 
 1. Rebuild the project.
-2. Run the standalone configuration checks.
-3. Close Streamer.bot.
+2. Build and run the standalone configuration checks.
+3. Close Streamer.bot when ready to install the update.
 4. Replace the installed `PokeHunter.Core.dll` with the newly built copy.
 5. Reopen Streamer.bot.
-6. Run the manual configuration check.
+6. Run the manual game configuration check.
 
 Rebuilding alone does not replace the installed DLL.
+
+The manual action currently checks game configuration only. Use the
+standalone checks to verify season configuration loading.
 
 ### Action C# code
 
@@ -380,13 +494,23 @@ For changes to a file such as `GameConfigurationCheck.cs`:
 For changes to `config/game.json`:
 
 1. Save the JSON file.
-2. Rerun the manual configuration check.
+2. Rerun the manual game configuration check.
 
 This check reads the file on every execution. Changing JSON values does
 not require rebuilding the DLL.
 
-This describes the manual check's behaviour. Configuration refresh
-behaviour for live gameplay will be documented when implemented.
+### Season configuration values
+
+For changes to `config/seasons.json`:
+
+1. Save the JSON file.
+2. Run the standalone configuration checks with both configuration paths.
+
+Changing the JSON values does not require rebuilding the DLL.
+Rebuild the checks if their code or the shared-library code changed.
+
+Configuration refresh behaviour for live gameplay will be documented
+when implemented.
 
 ## Troubleshooting
 
@@ -446,7 +570,7 @@ This makes it easier to distinguish `.cs`, `.csproj`, and `.dll` files.
 
 ### Configuration file cannot be found
 
-Check the `ProjectFolder` value in the pasted action.
+For the manual Streamer.bot action, check the `ProjectFolder` value.
 
 It must point to the repository root containing the `config` folder,
 not to the Streamer.bot installation or the `streamerbot` source folder.
@@ -456,6 +580,39 @@ Confirm that this file exists beneath it:
 ```text
 config/game.json
 ```
+
+For standalone checks, run the documented command from the repository
+root or supply absolute paths to both configuration files.
+
+### Configuration checks display the usage message
+
+The executable now requires both configuration paths:
+
+```powershell
+& ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json" ".\config\seasons.json"
+```
+
+The earlier command with only `game.json` is no longer sufficient.
+
+### Season timestamp is rejected
+
+Include the date, time with seconds, and an explicit offset or `Z`.
+
+For example:
+
+```text
+2027-01-01T00:00:00+01:00
+```
+
+Do not omit the offset. Check that the date itself is valid.
+
+### Seasons overlap
+
+Check that each season starts at or after the preceding season's
+exclusive ending instant.
+
+Different offsets can describe the same instant, so compare the complete
+timestamps rather than just their displayed clock times.
 
 ### Shared-library changes do not appear in Streamer.bot
 
