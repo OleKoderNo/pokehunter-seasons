@@ -210,27 +210,36 @@ You can also format the open file manually with **Shift + Alt + F**.
 
 After a successful build:
 
-1. Close Streamer.bot.
+1. Exit Streamer.bot completely, including any system-tray instance.
 2. Open `streamerbot/configuration/bin/Debug/net481/` in your repository.
-3. Copy `PokeHunter.Core.dll`.
-4. Paste it into the `dlls` folder inside your Streamer.bot installation.
-5. Replace the previous copy if updating an existing installation.
+3. Copy both `PokeHunter.Core.dll` and `TimeZoneConverter.dll`.
+4. Paste them into the `dlls` folder inside your Streamer.bot installation.
+5. Replace the previous copies when updating.
 6. Reopen Streamer.bot.
 
-For example, if Streamer.bot is installed at `C:\Tools\Streamer.bot`,
-the installed library should be:
+For an installation at `C:\Tools\Streamer.bot`, the files should be:
 
-```text
-C:\Tools\Streamer.bot\dlls\PokeHunter.Core.dll
-```
+- `C:\Tools\Streamer.bot\dlls\PokeHunter.Core.dll`
+- `C:\Tools\Streamer.bot\dlls\TimeZoneConverter.dll`
 
-Building the project does not automatically install or update this copy.
+`PokeHunter.Core.dll` depends on TimeZoneConverter for configured
+time-zone resolution.
 
-Do not copy `PokeHunter.Core.csproj` into Streamer.bot. That file contains
-build instructions, not the compiled library.
+TimeZoneConverter is installed through the shared-library project's
+NuGet package reference. Building restores the dependency; creators
+do not need to download its DLL separately.
 
-Use Streamer.bot's existing `Newtonsoft.Json.dll`. There is no need to
-download a separate JSON library for this setup.
+Building does not automatically update the copies inside Streamer.bot.
+
+If copying reports that a DLL is being used by another process, confirm
+that Streamer.bot has fully exited. PowerShell's `-Force` option cannot
+overwrite a DLL held open by another process.
+
+In the manual action's References tab, reference both installed DLLs
+alongside Streamer.bot's existing `Newtonsoft.Json.dll`.
+
+Do not install `.csproj` files or `PokeHunter.StreamerBot.dll`.
+Commit source files and package references, not generated DLLs.
 
 ## 7. Run an action in Streamer.bot
 
@@ -261,6 +270,8 @@ compiled into `PokeHunter.Core.dll`.
   and requires configuration properties to be present and non-null.
 - `ExplicitOffsetDateTimeConverter.cs` reads timestamps that include
   an explicit UTC offset or `Z`.
+- `ConfigurationTimeZone.cs` resolves configured time-zone names and
+  reports resolution failures as configuration errors.
 
 Unknown JSON properties are rejected to help catch misspelled settings.
 Invalid settings are reported rather than silently replaced with defaults.
@@ -375,14 +386,25 @@ Selecting a season does not create, modify, or archive collection records.
 
 ### Current implementation limits
 
-The validator checks that the named time zone is supplied, but does not
-yet resolve it or verify that timestamp offsets match that zone's rules.
+Game and season configuration loading, active-season selection, and
+configured time-zone resolution are connected to the manual Streamer.bot
+configuration check.
 
-Game and season configuration loading, together with active-season
-selection, are connected to the manual Streamer.bot configuration check.
+`ConfigurationTimeZone.cs` resolves supported IANA or Windows time-zone
+identifiers through TimeZoneConverter. Unknown or unavailable zones
+are rejected during season validation.
 
-They are not connected to a live catching action.
+The named zone controls local-time display. Explicit timestamp offsets
+continue to define season boundaries. The validator does not require a
+timestamp's written offset to equal the named zone's local offset.
 
+This allows equivalent UTC timestamps and other explicit-offset
+representations to remain valid.
+
+The manual check logs the same instant in UTC and the configured zone.
+Time-zone conversion uses the operating system's time-zone rules.
+
+Configuration loading is not connected to a live catching action.
 Event and overlay configuration loaders are not implemented yet.
 
 ## Run the standalone configuration checks
@@ -691,6 +713,34 @@ Rebuild the checks if their code or the shared-library code changed.
 
 Configuration refresh behaviour for live gameplay will be documented
 when implemented.
+
+## Time-zone verification
+
+`tests/configuration/TimeZoneChecks.cs` runs alongside all existing
+configuration and season-selection checks. `Program.cs` explicitly
+calls `TimeZoneChecks.Run()`.
+
+The checks verify that:
+
+1. `Europe/Oslo` resolves successfully.
+2. A fixed winter instant converts to Oslo with offset `+01:00`.
+3. A fixed summer instant converts to Oslo with offset `+02:00`.
+4. Both conversions preserve the original instant.
+5. Season validation rejects an unknown time-zone identifier.
+
+The additional output appears before the final success message:
+
+- `PASS: Europe/Oslo resolved successfully.`
+- `PASS: Oslo winter conversion uses UTC+01:00.`
+- `PASS: Oslo summer conversion uses UTC+02:00.`
+- `PASS: Season validation rejects an unknown time zone.`
+
+The manual Streamer.bot check also logs the checked instant in UTC and
+the configured local zone. Both values describe the same moment.
+
+Changing `timeZone` changes local-time display, not the instants specified
+by season boundary timestamps. To move a season boundary, edit its
+timestamp explicitly.
 
 ## Troubleshooting
 

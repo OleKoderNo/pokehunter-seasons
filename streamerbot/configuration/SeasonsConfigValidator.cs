@@ -23,9 +23,10 @@ namespace PokeHunter.Configuration
                 "schemaVersion must be 1."
             );
 
-            // Named time-zone resolution is handled separately.
-            // This check only requires a nonempty, unpadded value.
+            // Require a valid identifier that can be resolved on this computer.
+            // Explicit timestamp offsets still determine the season boundaries.
             RequireText(config.TimeZone, "timeZone");
+            ConfigurationTimeZone.Resolve(config.TimeZone);
 
             Require(
                 config.Seasons != null && config.Seasons.Count > 0,

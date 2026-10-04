@@ -9,13 +9,6 @@ This document explains how to customize the game using:
 - `config/events.json` — event schedules, themed Pokémon, costumes, and event weights.
 - `config/catch-overlay.json` — catch notification appearance, animation, audio, and display queue.
 
-The loader and value validator for `config/game.json` are implemented.
-They have passed initial standalone checks and a manual configuration
-check inside Streamer.bot using the shared `PokeHunter.Core.dll` library.
-
-The manual check reads and validates settings, then logs the results.
-It does not update Twitch rewards or run the catching game.
-
 Loaders and validators for `config/game.json` and `config/seasons.json`
 are implemented and have passed initial standalone checks.
 
@@ -27,11 +20,16 @@ Configured seasons must meet without gaps or overlaps. Starts are
 inclusive and ends are exclusive. Add the next season before the final
 configured season ends.
 
-Season selection uses the explicit UTC offsets in the timestamps.
-Named time-zone resolution and verification of offsets against the
-named zone's rules are not yet implemented.
+The configured time-zone name is resolved using TimeZoneConverter.
+Unknown or unavailable zones are rejected.
 
-The manual check does not update Twitch rewards or run the catching game.
+Explicit timestamp offsets determine season boundaries. The configured
+time zone is used to display local time; it does not override those
+offsets. Equivalent timestamps written in UTC remain valid.
+
+The manual check logs both UTC and configured local time. It does not
+update Twitch rewards or run the catching game.
+
 Loaders for event and overlay configuration are not implemented yet.
 
 ## Editing the file

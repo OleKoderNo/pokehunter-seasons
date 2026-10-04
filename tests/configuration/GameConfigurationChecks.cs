@@ -32,8 +32,7 @@ internal static class GameConfigurationChecks
         string temporaryFolder
     )
     {
-        // Parse a separate in-memory copy of the real configuration.
-        // Only the temporary file receives the deliberately invalid value.
+        // Change an in-memory copy and save only to the temporary folder.
         JObject invalidGame = JObject.Parse(File.ReadAllText(filePath));
 
         invalidGame["shiny"]["collectionBonus"]

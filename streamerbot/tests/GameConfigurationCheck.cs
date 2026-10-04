@@ -33,12 +33,22 @@ public class CPHInline
                 "seasons.json"
             );
 
-            // Each loader reads the file and validates its contents.
+            // Read and validate both configuration files.
+            // Season validation also verifies that its time zone resolves.
             GameConfig game = GameConfigLoader.Load(gamePath);
             SeasonsConfig seasons = SeasonsConfigLoader.Load(seasonsPath);
 
-            // Capture one instant for this execution.
+            // Capture one instant for selection and both time displays.
             DateTimeOffset checkedAt = DateTimeOffset.UtcNow;
+
+            TimeZoneInfo configuredZone =
+                ConfigurationTimeZone.Resolve(seasons.TimeZone);
+
+            // Conversion changes the clock representation, not the instant.
+            DateTimeOffset localCheckedAt = TimeZoneInfo.ConvertTime(
+                checkedAt,
+                configuredZone
+            );
 
             SeasonDefinition activeSeason =
                 SeasonSelector.FindActive(seasons, checkedAt);
@@ -65,9 +75,16 @@ public class CPHInline
                 "Configured seasons: " + seasons.Seasons.Count
             );
 
+            // O uses round-trip formatting, including the UTC offset.
             CPH.LogInfo(
-                "[PokéHunter] Checked at: " +
+                "[PokéHunter] Checked at (UTC): " +
                 checkedAt.ToString("O")
+            );
+
+            CPH.LogInfo(
+                "[PokéHunter] Checked at (" +
+                seasons.TimeZone + "): " +
+                localCheckedAt.ToString("O")
             );
 
             CPH.LogInfo(
@@ -78,8 +95,8 @@ public class CPHInline
                 "[PokéHunter] Season configuration file: " + seasonsPath
             );
 
-            // Valid configuration can still describe a schedule that
-            // has not started yet or has already ended.
+            // A valid schedule may not cover the current instant.
+            // Never silently select an expired or future season.
             if (activeSeason == null)
             {
                 CPH.LogWarn(
@@ -101,7 +118,7 @@ public class CPHInline
                 string.Join(", ", activeSeason.UnlockedGenerations)
             );
 
-            // Round-trip formatting includes the timestamp's UTC offset.
+            // Keep the original boundary offsets visible for troubleshooting.
             CPH.LogInfo(
                 "[PokéHunter] Season starts: " +
                 activeSeason.StartsAt.ToString("O") +
@@ -113,7 +130,7 @@ public class CPHInline
         }
         catch (Exception exception)
         {
-            // Include the complete exception for troubleshooting.
+            // Preserve the full exception details in the log.
             CPH.LogError(
                 "[PokéHunter] Configuration check failed: " +
                 exception

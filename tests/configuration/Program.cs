@@ -35,6 +35,7 @@ internal static class Program
             GameConfigurationChecks.Run(args[0], temporaryFolder);
             SeasonConfigurationChecks.Run(args[1], temporaryFolder);
             SeasonSelectionChecks.Run();
+            TimeZoneChecks.Run();
 
             Console.WriteLine("All configuration checks passed.");
             return 0;

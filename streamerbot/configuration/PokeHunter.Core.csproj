@@ -1,9 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <!-- Reuse the installation path configured for this developer. -->
-    <Import
-        Project="../StreamerBot.local.props"
-        Condition="Exists('../StreamerBot.local.props')"
-    />
+    <Import Project="../StreamerBot.local.props" Condition="Exists('../StreamerBot.local.props')" />
 
     <PropertyGroup>
         <!-- Match the framework verified inside Streamer.bot. -->
@@ -22,11 +19,8 @@
 
     <ItemGroup>
         <!-- Framework definitions used when compiling the project. -->
-        <PackageReference
-            Include="Microsoft.NETFramework.ReferenceAssemblies.net481"
-            Version="1.0.3"
-            PrivateAssets="all"
-        />
+        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net481" Version="1.0.3" PrivateAssets="all" />
+        <PackageReference Include="TimeZoneConverter" Version="7.2.0" />
 
         <!-- Streamer.bot supplies this dependency when running the library. -->
         <Reference Include="Newtonsoft.Json">
@@ -36,13 +30,7 @@
     </ItemGroup>
 
     <Target Name="ValidateLocalSetup" BeforeTargets="ResolveReferences">
-        <Error
-            Condition="'$(StreamerBotPath)' == ''"
-            Text="Set StreamerBotPath in streamerbot/StreamerBot.local.props."
-        />
-        <Error
-            Condition="!Exists('$(StreamerBotPath)/Newtonsoft.Json.dll')"
-            Text="Newtonsoft.Json.dll was not found. Check StreamerBotPath."
-        />
+        <Error Condition="'$(StreamerBotPath)' == ''" Text="Set StreamerBotPath in streamerbot/StreamerBot.local.props." />
+        <Error Condition="!Exists('$(StreamerBotPath)/Newtonsoft.Json.dll')" Text="Newtonsoft.Json.dll was not found. Check StreamerBotPath." />
     </Target>
 </Project>
