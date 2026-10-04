@@ -2,8 +2,6 @@ using System;
 using System.IO;
 using PokeHunter.Configuration;
 
-// Our development project supplies the Streamer.bot base class.
-// Inside Streamer.bot, the action uses its expected CPHInline name.
 #if EXTERNAL_EDITOR
 public class GameConfigurationCheck
     : Streamer.bot.Plugin.Interface.CPHInlineBase
@@ -11,8 +9,7 @@ public class GameConfigurationCheck
 public class CPHInline
 #endif
 {
-    // Change this path to the folder containing your project.
-    // Keep the @ prefix so Windows backslashes are treated literally.
+    // Change this to the repository root containing the config folder.
     private const string ProjectFolder =
         @"C:\Users\ohfb9\Documents\Coding\Private\Streaming\pokehunter-seasons";
 
@@ -24,17 +21,27 @@ public class CPHInline
     {
         try
         {
-            // Construct the path without relying on Streamer.bot's
-            // current working directory.
-            string configurationPath = Path.Combine(
+            string gamePath = Path.Combine(
                 ProjectFolder,
                 "config",
                 "game.json"
             );
 
-            // The shared library reads the file and validates both
-            // its expected structure and the configured values.
-            GameConfig config = GameConfigLoader.Load(configurationPath);
+            string seasonsPath = Path.Combine(
+                ProjectFolder,
+                "config",
+                "seasons.json"
+            );
+
+            // Each loader reads the file and validates its contents.
+            GameConfig game = GameConfigLoader.Load(gamePath);
+            SeasonsConfig seasons = SeasonsConfigLoader.Load(seasonsPath);
+
+            // Capture one instant for this execution.
+            DateTimeOffset checkedAt = DateTimeOffset.UtcNow;
+
+            SeasonDefinition activeSeason =
+                SeasonSelector.FindActive(seasons, checkedAt);
 
             CPH.LogInfo(
                 "[PokéHunter] Game configuration check passed."
@@ -42,30 +49,73 @@ public class CPHInline
 
             CPH.LogInfo(
                 "[PokéHunter] Reward cost: " +
-                config.Redemption.Cost +
+                game.Redemption.Cost +
                 " | Cooldown: " +
-                config.Redemption.PerUserCooldownSeconds +
+                game.Redemption.PerUserCooldownSeconds +
                 " seconds"
             );
 
             CPH.LogInfo(
                 "[PokéHunter] Base shiny odds: 1 in " +
-                config.Shiny.BaseOddsDenominator
+                game.Shiny.BaseOddsDenominator
             );
 
             CPH.LogInfo(
-                "[PokéHunter] Configuration file: " +
-                configurationPath
+                "[PokéHunter] Season configuration check passed. " +
+                "Configured seasons: " + seasons.Seasons.Count
+            );
+
+            CPH.LogInfo(
+                "[PokéHunter] Checked at: " +
+                checkedAt.ToString("O")
+            );
+
+            CPH.LogInfo(
+                "[PokéHunter] Game configuration file: " + gamePath
+            );
+
+            CPH.LogInfo(
+                "[PokéHunter] Season configuration file: " + seasonsPath
+            );
+
+            // Valid configuration can still describe a schedule that
+            // has not started yet or has already ended.
+            if (activeSeason == null)
+            {
+                CPH.LogWarn(
+                    "[PokéHunter] No season is active at the checked time. " +
+                    "Check the first start and final end in seasons.json."
+                );
+
+                return false;
+            }
+
+            CPH.LogInfo(
+                "[PokéHunter] Active season: " +
+                activeSeason.Name +
+                " (" + activeSeason.Id + ")"
+            );
+
+            CPH.LogInfo(
+                "[PokéHunter] Unlocked generations: " +
+                string.Join(", ", activeSeason.UnlockedGenerations)
+            );
+
+            // Round-trip formatting includes the timestamp's UTC offset.
+            CPH.LogInfo(
+                "[PokéHunter] Season starts: " +
+                activeSeason.StartsAt.ToString("O") +
+                " | Ends exclusively: " +
+                activeSeason.EndsAtExclusive.ToString("O")
             );
 
             return true;
         }
         catch (Exception exception)
         {
-            // At the action boundary, report the complete exception.
-            // This includes any underlying error preserved by the loader.
+            // Include the complete exception for troubleshooting.
             CPH.LogError(
-                "[PokéHunter] Game configuration check failed: " +
+                "[PokéHunter] Configuration check failed: " +
                 exception
             );
 

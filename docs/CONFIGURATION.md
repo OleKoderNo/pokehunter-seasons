@@ -16,26 +16,22 @@ check inside Streamer.bot using the shared `PokeHunter.Core.dll` library.
 The manual check reads and validates settings, then logs the results.
 It does not update Twitch rewards or run the catching game.
 
-Loaders and value validators for `config/game.json` and
-`config/seasons.json` are implemented and have passed initial standalone
-checks.
+Loaders and validators for `config/game.json` and `config/seasons.json`
+are implemented and have passed initial standalone checks.
 
-Game configuration loading has also passed a manual check inside
-Streamer.bot using the shared `PokeHunter.Core.dll` library.
+A manual Streamer.bot configuration check loads both files through
+`PokeHunter.Core.dll`, selects the active season, and logs its unlocked
+generations.
 
-Season checks cover configuration loading, adjoining boundaries,
-overlapping seasons, and timestamps requiring explicit UTC offsets.
-Active-season selection is implemented and tested at exact boundaries.
-Configured seasons must meet without gaps or overlaps. Add a future
-season before the final configured season ends.
+Configured seasons must meet without gaps or overlaps. Starts are
+inclusive and ends are exclusive. Add the next season before the final
+configured season ends.
 
-Named time-zone resolution and verification of timestamp offsets against
-the named zone are not yet implemented.
+Season selection uses the explicit UTC offsets in the timestamps.
+Named time-zone resolution and verification of offsets against the
+named zone's rules are not yet implemented.
 
-The manual Streamer.bot check reads and validates game settings, then
-logs the results. It does not update Twitch rewards or run the catching
-game.
-
+The manual check does not update Twitch rewards or run the catching game.
 Loaders for event and overlay configuration are not implemented yet.
 
 ## Editing the file
