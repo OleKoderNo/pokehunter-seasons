@@ -455,9 +455,80 @@ cooldowns, or perform encounters.
 The manual game configuration check and the standalone checks use
 the shared configuration implementation.
 
-Existing checks should remain active when new checks are added.
-They help detect regressions: changes that break previously working
-behaviour.
+### Standalone check structure
+
+The standalone checks are divided by responsibility:
+
+| File                           | Responsibility                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------- |
+| `Program.cs`                   | Reads arguments, runs check groups, reports failures, and cleans up temporary files |
+| `GameConfigurationChecks.cs`   | Loads game configuration and checks invalid game settings                           |
+| `SeasonConfigurationChecks.cs` | Loads season configuration and checks scheduling and timestamp examples             |
+| `CheckAssert.cs`               | Verifies that invalid input is rejected for the expected reason                     |
+| `TestJsonFiles.cs`             | Writes temporary JSON examples for the loaders                                      |
+
+These files belong to the standalone executable. They are not compiled
+into `PokeHunter.Core.dll` or pasted into Streamer.bot.
+
+The project automatically includes C# files inside its directory.
+
+### How a check run works
+
+1. `Program` receives the game and season configuration paths.
+2. It creates a uniquely named temporary directory.
+3. It runs the game checks followed by the season checks.
+4. Each group loads the real configuration and runs its controlled cases.
+5. A failure throws an exception and stops the remaining checks.
+6. `Program` reports success with exit code `0`, or failure with exit code `1`.
+7. Cleanup is attempted whether the checks pass or fail.
+
+A cleanup failure produces a warning without replacing the test result.
+
+### Temporary examples and fixtures
+
+The game rejection check modifies an in-memory copy of the supplied
+game configuration and writes that copy into the temporary directory.
+
+Season checks use a fixture: a small, fixed example schedule created
+specifically for testing. Each scenario receives a fresh fixture.
+
+This keeps season boundary checks independent of the creator's actual
+schedule and prevents one scenario from changing another's input.
+
+The original configuration files are never overwritten by these checks.
+
+### Adding a check
+
+1. Choose the appropriate configuration-check class.
+2. Add a method with a name describing the behaviour being checked.
+3. Call that method from the class's `Run` method.
+4. Use a fresh valid example and change only what the scenario requires.
+5. Use `TestJsonFiles.Write` when the loader needs a temporary file.
+6. For expected validation failures, use `CheckAssert.Rejected` with
+   message fragments identifying the intended rejection reason.
+7. Print the PASS message only after all assertions succeed.
+8. Build and run the complete executable.
+
+`CheckAssert.Rejected` requires `InvalidDataException`. An unrelated
+exception, an unexpected rejection reason, or invalid input being
+accepted causes the check to fail.
+
+For a new check group, add its own class and call its `Run` method from
+`Program`. Creating a method or file alone does not execute a check.
+
+### Preserving regression checks
+
+Existing checks remain active when new checks are added. They help
+detect regressions: changes that break previously working behaviour.
+
+Moving a check into another file should preserve its inputs, assertions,
+and expected results.
+
+Change or remove an existing check only when its expected behaviour has
+deliberately changed, and explain that change in the commit.
+
+These are lightweight standalone checks, not an automatically discovered
+test suite. New checks must be called explicitly.
 
 ## Applying later changes
 
