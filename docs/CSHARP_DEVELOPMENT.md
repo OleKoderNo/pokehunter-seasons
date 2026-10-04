@@ -297,8 +297,15 @@ The validator requires:
 - Nonempty generation lists containing distinct positive integers.
 - Season schedules that do not overlap.
 
-Gaps between seasons are allowed. Annual durations and cumulative
-generation unlocks are not hardcoded requirements.
+Configured seasons must form a continuous schedule. Each season after
+the first must start at exactly the preceding season's exclusive end.
+Both overlaps and gaps are rejected.
+
+Annual durations and cumulative generation unlocks are not hardcoded
+requirements.
+
+Add the next season before the final configured season ends. The game
+does not automatically invent future seasons or their generation unlocks.
 
 Generation availability against the Pokémon catalogue is not checked yet.
 
@@ -337,8 +344,19 @@ that zone's rules.
 
 ### Current implementation limits
 
-Active-season selection and named time-zone resolution are not yet
-implemented.
+Active-season selection is implemented through
+`SeasonSelector.FindActive(config, instant)`.
+
+It validates the configuration and returns the season containing the
+supplied instant. Starts are inclusive; ends are exclusive. At a shared
+boundary, the next season is selected immediately.
+
+The selector returns null before the first configured season and at or
+after the final configured end. Invalid schedules throw an exception.
+
+Selection compares the instants represented by explicit timestamp
+offsets. Named time-zone resolution and verification that offsets match
+the named zone's rules are not yet implemented.
 
 Season loading has not yet been added to a manual Streamer.bot action.
 The existing manual configuration check loads only `config/game.json`.
@@ -347,24 +365,29 @@ Configuration loading is not connected to a live catching action.
 
 ## Run the standalone configuration checks
 
-From the repository root, build the standalone test program:
+From the repository root, build the standalone test program and run it
+only if the build succeeds:
 
 ```powershell
 dotnet build tests/configuration/ConfigurationChecks.csproj
+
+if ($LASTEXITCODE -eq 0) {
+    & ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json" ".\config\seasons.json"
+}
 ```
 
-This also builds its referenced shared-library project.
+The build also builds the referenced shared-library project.
 
-After a successful build, run:
-
-```powershell
-& ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json" ".\config\seasons.json"
-```
+`$LASTEXITCODE -eq 0` checks that the build succeeded. This prevents an
+older executable from running after a failed build.
 
 The executable requires two arguments, in this order:
 
 1. The path to `game.json`.
 2. The path to `seasons.json`.
+
+It runs the game configuration, season configuration, and active-season
+selection checks.
 
 ### What the checks verify
 

@@ -25,8 +25,12 @@ Streamer.bot using the shared `PokeHunter.Core.dll` library.
 
 Season checks cover configuration loading, adjoining boundaries,
 overlapping seasons, and timestamps requiring explicit UTC offsets.
-Named time-zone resolution and active-season selection are not yet
-implemented.
+Active-season selection is implemented and tested at exact boundaries.
+Configured seasons must meet without gaps or overlaps. Add a future
+season before the final configured season ends.
+
+Named time-zone resolution and verification of timestamp offsets against
+the named zone are not yet implemented.
 
 The manual Streamer.bot check reads and validates game settings, then
 logs the results. It does not update Twitch rewards or run the catching
