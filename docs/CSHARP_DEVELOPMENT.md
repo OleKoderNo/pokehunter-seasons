@@ -823,6 +823,85 @@ Changing `timeZone` changes local-time display, not the instants specified
 by season boundary timestamps. To move a season boundary, edit its
 timestamp explicitly.
 
+## Database storage library and manual checks
+
+Database code belongs to the separate project:
+
+`streamerbot/storage/PokeHunter.Storage.csproj`
+
+The action project references this library and excludes its source
+directory from direct compilation.
+
+Building the action project also builds the storage library:
+
+```powershell
+dotnet build streamerbot/PokeHunter.StreamerBot.csproj
+```
+
+The resulting library is:
+
+`streamerbot/storage/bin/Debug/net481/PokeHunter.Storage.dll`
+
+### Install or update the library
+
+Close Streamer.bot completely, then copy `PokeHunter.Storage.dll`
+into the `dlls` directory of your Streamer.bot installation.
+
+Reopen Streamer.bot after copying.
+
+Loaded DLLs can remain locked while Streamer.bot is running.
+Using `Copy-Item -Force` does not bypass those locks.
+
+### Configure the manual actions
+
+The action source files are:
+
+- `streamerbot/tests/DatabaseInitializationCheck.cs`
+- `streamerbot/tests/DatabaseRejectionCheck.cs`
+
+Create a separate Streamer.bot action for each file. Add an Execute
+C# Code sub-action and paste the complete corresponding source file.
+
+For the initialization check, set `ProjectFolder` to your repository's
+absolute path before copying the source.
+
+Each Execute C# Code sub-action needs these assembly references:
+
+- `PokeHunter.Storage.dll` from Streamer.bot's `dlls` directory.
+- `System.Data.SQLite.dll` from Streamer.bot's `dlls` directory.
+- The .NET Framework `System.Data.dll`.
+
+On the verified Windows x64 setup, the framework assembly is located at:
+
+```text
+C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Data.dll
+```
+
+The `.csproj` references configure local builds. They do not
+automatically configure the pasted action's assembly references
+inside Streamer.bot.
+
+Compile and save each action before running it.
+
+### Expected results
+
+The initialization check creates or reuses a dedicated test database.
+It initializes twice and verifies that the migration record is preserved.
+
+On its first run, `Database existed before this check` should be `False`
+if the test database does not already exist. Subsequent runs should
+report `True`, with the same original migration timestamp.
+
+The rejection check creates temporary fixtures and verifies that a
+newer database version and an unrelated database are rejected without
+changing their files.
+
+These are manual runtime checks. Building the C# project alone does
+not execute them.
+
+See [Database Design](DATABASE.md) for the implemented schema,
+current verification coverage, and planned collection storage.
+
 ## Troubleshooting
 
 ### dotnet is unavailable or no SDK is listed

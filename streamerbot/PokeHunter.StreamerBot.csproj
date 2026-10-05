@@ -60,12 +60,17 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!-- These classes are now compiled by the shared library project.
-             Also exclude that project's generated C# files. -->
+        <!--
+            Shared libraries compile their own source files.
+            Exclude those folders from this action project's compilation,
+            including any generated C# files beneath them.
+        -->
         <Compile Remove="configuration/**/*.cs" />
+        <Compile Remove="storage/**/*.cs" />
 
-        <!-- Build the shared library and make its classes available here. -->
+        <!-- Make the shared libraries available to our action code. -->
         <ProjectReference Include="configuration/PokeHunter.Core.csproj" />
+        <ProjectReference Include="storage/PokeHunter.Storage.csproj" />
     </ItemGroup>
 
     <!-- Give developers clear instructions when local setup is missing. -->

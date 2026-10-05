@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Reuse the developer's existing Streamer.bot installation path. -->
+    <Import
+        Project="../StreamerBot.local.props"
+        Condition="Exists('../StreamerBot.local.props')"
+    />
+
+    <PropertyGroup>
+        <!-- Match the framework and architecture verified in Streamer.bot. -->
+        <TargetFramework>net481</TargetFramework>
+        <OutputType>Library</OutputType>
+        <PlatformTarget>x64</PlatformTarget>
+
+        <!-- Keep syntax consistent with the other C# projects. -->
+        <LangVersion>7.3</LangVersion>
+        <Nullable>disable</Nullable>
+        <ImplicitUsings>disable</ImplicitUsings>
+
+        <!-- This project builds the database support library. -->
+        <AssemblyName>PokeHunter.Storage</AssemblyName>
+        <RootNamespace>PokeHunter.Storage</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Build-time framework definitions. -->
+        <PackageReference
+            Include="Microsoft.NETFramework.ReferenceAssemblies.net481"
+            Version="1.0.3"
+            PrivateAssets="all"
+        />
+
+        <!-- Provides the framework's database interfaces and types. -->
+        <Reference Include="System.Data" />
+
+        <!-- Use the same SQLite provider already tested in Streamer.bot. -->
+        <Reference Include="System.Data.SQLite">
+            <HintPath>$(StreamerBotPath)/dlls/System.Data.SQLite.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
+
+    <!-- Report setup problems before trying to resolve references. -->
+    <Target Name="ValidateLocalSetup" BeforeTargets="ResolveReferences">
+        <Error
+            Condition="'$(StreamerBotPath)' == ''"
+            Text="Copy streamerbot/StreamerBot.local.props.example to streamerbot/StreamerBot.local.props and set StreamerBotPath."
+        />
+
+        <Error
+            Condition="!Exists('$(StreamerBotPath)/dlls/System.Data.SQLite.dll')"
+            Text="System.Data.SQLite.dll was not found. Check StreamerBotPath and follow docs/SQLITE_SETUP.md."
+        />
+    </Target>
+</Project>
