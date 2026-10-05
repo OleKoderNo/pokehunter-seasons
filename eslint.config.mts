@@ -14,10 +14,13 @@ export default defineConfig([
       "**/cache/**",
       "**/runtime/**",
       "**/backups/**",
+      "**/bin/**",
+      "**/obj/**",
     ],
   },
   {
-    files: ["scripts/**/*.ts"],
+    // Check the tooling scripts and this TypeScript configuration.
+    files: ["scripts/**/*.ts", "eslint.config.mts"],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       globals: globals.node,
@@ -28,13 +31,6 @@ export default defineConfig([
         "error",
         { prefer: "type-imports" },
       ],
-    },
-  },
-  {
-    files: ["*.mjs"],
-    extends: [js.configs.recommended],
-    languageOptions: {
-      globals: globals.node,
     },
   },
 
