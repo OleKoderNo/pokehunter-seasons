@@ -30,7 +30,14 @@ offsets. Equivalent timestamps written in UTC remain valid.
 The manual check logs both UTC and configured local time. It does not
 update Twitch rewards or run the catching game.
 
-Loaders for event and overlay configuration are not implemented yet.
+Game, season, and event configurations now have loaders, validators,
+and standalone checks.
+
+Season selection is also verified inside Streamer.bot. Event selection
+is currently verified through the standalone checks.
+
+These checks do not perform encounters, award Pokémon, or change
+channel-point rewards. Overlay configuration loading is not implemented yet.
 
 ## Editing the file
 
@@ -735,6 +742,70 @@ the season's permanent generation unlocks.
 
 Creating this file alone does not activate an event in Streamer.bot.
 The event loader and encounter logic still need to be implemented.
+
+### Event schedule rules
+
+Each event has a start timestamp and an exclusive end timestamp:
+
+- The event is active at its exact start.
+- The event is inactive at its exact end.
+- Disabled events are never selected.
+- Enabled events must not overlap.
+- One event may start exactly when another ends.
+- Gaps between events are allowed.
+- An empty `events` list is allowed.
+
+Unlike seasons, events do not need to form a continuous schedule.
+Having no active event is a normal state.
+
+Disabled events must still contain valid settings. Disabling an event
+removes it from selection and overlap checks; it does not bypass
+validation of its configuration.
+
+Timestamps must include an explicit UTC offset or `Z`. Their offsets
+determine the actual boundary instants. The configured `timeZone` must
+resolve successfully, but it does not replace those explicit offsets.
+
+### Event inclusion rules
+
+The inclusion lists describe which Pokémon an event will make eligible:
+
+- `types`: Pokémon matching a listed type.
+- `evolutionFamilies`: full evolution families identified by a member.
+- `forms`: explicitly selected forms.
+- `costumes`: explicitly selected costumes.
+
+All four lists must be present. Individual lists may be empty, but an
+event must contain at least one inclusion selector.
+
+Type names must be supported Pokémon types written in lowercase.
+Family, form, and costume identifiers use lowercase letters, digits,
+and single hyphens between nonempty parts.
+
+Duplicate identifiers within the same list are rejected. Different
+lists may describe the same Pokémon; catalogue processing will later
+combine those matches without creating duplicate entries.
+
+The current validator checks selector structure and supported type
+names. Checking family, form, and costume identifiers against the
+Pokémon catalogue is not implemented yet.
+
+### Event encounter settings
+
+`categoryWeight` must be greater than zero. It describes the relative
+weight of the Event encounter category; it does not directly multiply
+every included Pokémon's individual encounter probability.
+
+`allowLockedGenerations` controls whether the event may introduce
+eligible Pokémon from generations that the current season has not
+unlocked.
+
+`requireUnlockedGenerationForLegendary` and
+`requireUnlockedGenerationForMythical` keep those groups restricted
+to unlocked generations when set to `true`.
+
+These settings are currently loaded and validated. Their effect on
+encounters will be implemented with the encounter system.
 
 ### `schemaVersion`
 

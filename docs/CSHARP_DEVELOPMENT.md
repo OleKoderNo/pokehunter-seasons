@@ -409,29 +409,76 @@ Event and overlay configuration loaders are not implemented yet.
 
 ## Run the standalone configuration checks
 
-From the repository root, build the standalone test program and run it
-only if the build succeeds:
+From the repository root, run:
 
 ```powershell
 dotnet build tests/configuration/ConfigurationChecks.csproj
 
 if ($LASTEXITCODE -eq 0) {
-    & ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json" ".\config\seasons.json"
+    & ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json" ".\config\seasons.json" ".\config\events.json"
 }
 ```
 
-The build also builds the referenced shared-library project.
+Building the test project also builds its referenced shared library.
 
-`$LASTEXITCODE -eq 0` checks that the build succeeded. This prevents an
-older executable from running after a failed build.
+The condition runs the checks only when the build succeeds. This
+prevents accidentally running an older executable after a failed build.
 
-The executable requires two arguments, in this order:
+The executable requires three arguments, in this order:
 
 1. The path to `game.json`.
 2. The path to `seasons.json`.
+3. The path to `events.json`.
 
-It runs the game configuration, season configuration, and active-season
-selection checks.
+### How the checks are organized
+
+| File                           | Responsibility                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `Program.cs`                   | Runs the checks, manages temporary files, and reports success or failure.                                          |
+| `GameConfigurationChecks.cs`   | Checks the real game configuration and rejection of a zero milestone size.                                         |
+| `SeasonConfigurationChecks.cs` | Checks season loading, equivalent adjoining timestamps, overlaps, and explicit offsets.                            |
+| `SeasonSelectionChecks.cs`     | Checks season boundaries, offset equivalence, definition order, and gap rejection.                                 |
+| `TimeZoneChecks.cs`            | Checks time-zone resolution, winter and summer conversions, and invalid-zone rejection.                            |
+| `EventTestFixtures.cs`         | Creates fresh event configurations for independent checks.                                                         |
+| `EventConfigurationChecks.cs`  | Checks event loading, selection boundaries, disabled events, gaps, empty schedules, and selected invalid settings. |
+| `CheckAssert.cs`               | Checks that invalid configurations fail for the expected reason.                                                   |
+| `TestJsonFiles.cs`             | Writes temporary JSON fixtures used by the checks.                                                                 |
+
+The standalone project references `PokeHunter.Core`, so it tests the
+shared configuration implementation used by the Streamer.bot actions.
+
+### Event checks
+
+The event checks verify that:
+
+- The supplied event configuration loads.
+- Exact starts are included and exact ends are excluded.
+- Equivalent timestamps with different offsets select the same event.
+- Definition order does not affect selection.
+- Disabled events are ignored during selection and overlap checks.
+- Gaps and an empty event schedule are accepted.
+- Overlapping enabled events are rejected.
+- Timestamps without explicit offsets are rejected.
+- A zero category weight is rejected.
+- Unsupported Pokémon types are rejected.
+- A missing Legendary restriction setting is rejected.
+
+Existing game, season, and time-zone checks remain in place.
+
+These checks cover specific behaviours, not every possible invalid
+configuration or future encounter rule.
+
+### Results and temporary files
+
+The program returns exit code `0` on success and `1` on failure.
+
+Invalid configuration examples are written to a temporary directory.
+The supplied configuration files are not modified. Temporary files
+are removed after execution when possible.
+
+Event loading and selection are currently verified through these
+standalone checks. They have not yet been connected to the manual
+Streamer.bot configuration action or a live catching action.
 
 ### What the checks verify
 

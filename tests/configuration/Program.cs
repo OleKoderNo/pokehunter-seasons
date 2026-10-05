@@ -2,26 +2,22 @@ using System;
 using System.IO;
 
 /// <summary>
-/// Entry point for the standalone configuration checks.
-/// Owns the temporary directory and the process exit code.
+/// Runs the standalone checks and manages their temporary directory.
 /// </summary>
 internal static class Program
 {
     private static int Main(string[] args)
     {
-        // Paths are supplied by the caller so the checks can run against
-        // different configurations without changing the source code.
-        if (args.Length != 2)
+        if (args.Length != 3)
         {
             Console.Error.WriteLine(
-                "Usage: ConfigurationChecks.exe <game.json> <seasons.json>"
+                "Usage: ConfigurationChecks.exe " +
+                "<game.json> <seasons.json> <events.json>"
             );
 
             return 1;
         }
 
-        // Give each execution its own directory so separate runs do not
-        // overwrite each other's temporary configuration files.
         string temporaryFolder = Path.Combine(
             Path.GetTempPath(),
             "pokehunter-config-check-" + Guid.NewGuid().ToString("N")
@@ -31,31 +27,28 @@ internal static class Program
         {
             Directory.CreateDirectory(temporaryFolder);
 
-            // Keep both groups active as new checks are added.
+            // Preserve existing checks when adding new groups.
             GameConfigurationChecks.Run(args[0], temporaryFolder);
             SeasonConfigurationChecks.Run(args[1], temporaryFolder);
             SeasonSelectionChecks.Run();
             TimeZoneChecks.Run();
+
+            EventConfigurationChecks.Run(args[2], temporaryFolder);
 
             Console.WriteLine("All configuration checks passed.");
             return 0;
         }
         catch (Exception exception)
         {
-            // Any failed check or unexpected error makes the run fail.
             Console.Error.WriteLine("FAIL: " + exception);
             return 1;
         }
         finally
         {
-            // Cleanup runs after success or failure.
             RemoveTemporaryFolder(temporaryFolder);
         }
     }
 
-    /// <summary>
-    /// Removes this run's temporary files without hiding its test result.
-    /// </summary>
     private static void RemoveTemporaryFolder(string temporaryFolder)
     {
         try
@@ -67,7 +60,7 @@ internal static class Program
         }
         catch (Exception exception)
         {
-            // A cleanup problem is reported separately from test failures.
+            // Cleanup failure must not hide the original check result.
             Console.Error.WriteLine(
                 "Warning: Could not remove temporary test files at '" +
                 temporaryFolder + "': " + exception.Message
