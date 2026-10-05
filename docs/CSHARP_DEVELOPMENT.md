@@ -883,24 +883,30 @@ inside Streamer.bot.
 
 Compile and save each action before running it.
 
-### Expected results
+The initialization check creates or upgrades its dedicated test database
+to schema version 2.
 
-The initialization check creates or reuses a dedicated test database.
-It initializes twice and verifies that the migration record is preserved.
+It verifies that existing migration timestamps are preserved, repeated
+initialization leaves both records unchanged, and the trainer table
+contains the expected columns.
 
-On its first run, `Database existed before this check` should be `False`
-if the test database does not already exist. Subsequent runs should
-report `True`, with the same original migration timestamp.
+It also creates a temporary fresh database to verify that both
+migrations run successfully from scratch.
 
-The rejection check creates temporary fixtures and verifies that a
-newer database version and an unrelated database are rejected without
-changing their files.
+The first upgrade of an existing version-1 test database reports a
+previous migration count of 1. Later runs report 2.
 
-These are manual runtime checks. Building the C# project alone does
-not execute them.
+The rejection check uses a version one higher than
+`DatabaseInitializer.CurrentSchemaVersion` as its unsupported fixture.
+It also checks rejection of an unrelated database. Both files must
+remain unchanged after rejection.
 
-See [Database Design](DATABASE.md) for the implemented schema,
-current verification coverage, and planned collection storage.
+These are manual runtime checks. Building the project does not run them.
+
+After updating test source, replace the pasted code in the corresponding
+Streamer.bot sub-action, then save and compile it before running.
+
+See [Database Design](DATABASE.md) for migration details and coverage.
 
 ## Troubleshooting
 

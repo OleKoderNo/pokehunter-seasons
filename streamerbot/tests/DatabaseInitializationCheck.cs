@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
 using PokeHunter.Storage;
@@ -10,7 +11,6 @@ public class DatabaseInitializationCheck
 public class CPHInline
 #endif
 {
-    // Change this when setting up the project on another computer.
     private const string ProjectFolder =
         @"C:\Users\ohfb9\Documents\Coding\Private\Streaming\pokehunter-seasons";
 
@@ -20,9 +20,13 @@ public class CPHInline
     public bool Execute()
 #endif
     {
+        string temporaryDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "PokeHunter-Initialization-" + Guid.NewGuid().ToString("N")
+        );
+
         try
         {
-            // Use a dedicated test database, never the live game database.
             string databasePath = Path.Combine(
                 ProjectFolder,
                 "runtime",
@@ -31,65 +35,91 @@ public class CPHInline
 
             bool existedBefore = File.Exists(databasePath);
 
-            // First call creates a fresh database or validates an existing one.
-            int firstVersion = DatabaseInitializer.Initialize(databasePath);
+            // Read history before initialization so an upgrade must preserve
+            // records written by the previous application version.
+            List<string> originalHistory = existedBefore
+                ? ReadHistory(databasePath)
+                : new List<string>();
+
+            int version = DatabaseInitializer.Initialize(databasePath);
 
             Require(
-                firstVersion == DatabaseInitializer.CurrentSchemaVersion,
-                "The first initialization returned an unexpected version."
+                version == 2,
+                "Expected schema version 2."
             );
 
-            string originalTimestamp = ReadMigrationTimestamp(databasePath);
-
-            // Repeat initialization to verify it does not insert another
-            // migration row or replace the original timestamp.
-            int secondVersion = DatabaseInitializer.Initialize(databasePath);
+            List<string> installedHistory = ReadHistory(databasePath);
 
             Require(
-                secondVersion == firstVersion,
-                "Repeated initialization changed the schema version."
+                installedHistory.Count == 2,
+                "Expected exactly two migration records."
             );
 
-            string repeatedTimestamp = ReadMigrationTimestamp(databasePath);
+            RequirePreserved(originalHistory, installedHistory);
+            CheckTrainerColumns(databasePath);
+
+            // Repeating initialization must preserve both migration records.
+            int repeatedVersion = DatabaseInitializer.Initialize(databasePath);
+            List<string> repeatedHistory = ReadHistory(databasePath);
 
             Require(
-                string.Equals(
-                    originalTimestamp,
-                    repeatedTimestamp,
-                    StringComparison.Ordinal
-                ),
-                "Repeated initialization changed the migration timestamp."
+                repeatedVersion == version &&
+                repeatedHistory.Count == installedHistory.Count,
+                "Repeated initialization changed the version or history count."
+            );
+
+            RequirePreserved(installedHistory, repeatedHistory);
+
+            CPH.LogInfo(
+                "[PokéHunter] PASS: Existing migration records were preserved."
             );
 
             CPH.LogInfo(
-                "[PokéHunter] Database initialization check passed."
+                "[PokéHunter] PASS: Repeated initialization preserved " +
+                "both migration records."
+            );
+
+            // A fresh database must run the complete migration sequence.
+            Directory.CreateDirectory(temporaryDirectory);
+
+            string freshPath = Path.Combine(
+                temporaryDirectory,
+                "fresh.db"
+            );
+
+            Require(
+                DatabaseInitializer.Initialize(freshPath) == 2,
+                "A fresh database did not reach version 2."
+            );
+
+            Require(
+                ReadHistory(freshPath).Count == 2,
+                "A fresh database did not record both migrations."
+            );
+
+            CheckTrainerColumns(freshPath);
+
+            CPH.LogInfo(
+                "[PokéHunter] PASS: A fresh database reached version 2 " +
+                "with the trainer table."
             );
 
             CPH.LogInfo(
                 "[PokéHunter] Database existed before this check: " +
-                existedBefore
+                existedBefore +
+                " | Previous migration count: " + originalHistory.Count
             );
 
             CPH.LogInfo(
-                "[PokéHunter] Installed schema version: " + secondVersion
-            );
-
-            CPH.LogInfo(
-                "[PokéHunter] Migration history: exactly one version-1 row."
-            );
-
-            CPH.LogInfo(
-                "[PokéHunter] Original migration timestamp (UTC): " +
-                originalTimestamp
-            );
-
-            CPH.LogInfo(
-                "[PokéHunter] Repeated initialization preserved " +
-                "the migration record."
+                "[PokéHunter] Installed schema version: " + version
             );
 
             CPH.LogInfo(
                 "[PokéHunter] Test database: " + databasePath
+            );
+
+            CPH.LogInfo(
+                "[PokéHunter] All database initialization checks passed."
             );
 
             return true;
@@ -103,15 +133,138 @@ public class CPHInline
 
             return false;
         }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(temporaryDirectory))
+                {
+                    Directory.Delete(temporaryDirectory, true);
+                }
+            }
+            catch (Exception exception)
+            {
+                CPH.LogWarn(
+                    "[PokéHunter] Could not remove temporary folder '" +
+                    temporaryDirectory + "': " + exception.Message
+                );
+            }
+        }
     }
 
     /// <summary>
-    /// Reads the saved migration through a separate, read-only connection.
-    /// Checks that exactly one history row exists and belongs to version 1.
+    /// Reads each migration timestamp and verifies its ordered identity.
+    /// Supports the version-1 fixture before its upgrade to version 2.
     /// </summary>
-    private static string ReadMigrationTimestamp(string databasePath)
+    private static List<string> ReadHistory(string databasePath)
     {
-        var connectionString = new SQLiteConnectionStringBuilder
+        string[] expectedNames =
+        {
+            "Create migration history",
+            "Create trainers"
+        };
+
+        var timestamps = new List<string>();
+
+        using (var connection = OpenReadOnly(databasePath))
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText =
+                @"SELECT version, name, applied_at_utc
+                  FROM schema_migrations
+                  ORDER BY version;";
+
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    int index = timestamps.Count;
+
+                    Require(
+                        index < expectedNames.Length,
+                        "Unexpected extra migration record."
+                    );
+
+                    Require(
+                        reader.GetInt32(0) == index + 1 &&
+                        reader.GetString(1) == expectedNames[index],
+                        "Unexpected migration version or name."
+                    );
+
+                    string timestamp = reader.GetString(2);
+
+                    Require(
+                        !string.IsNullOrWhiteSpace(timestamp),
+                        "A migration timestamp is missing."
+                    );
+
+                    timestamps.Add(timestamp);
+                }
+            }
+        }
+
+        Require(
+            timestamps.Count > 0,
+            "The migration history is empty."
+        );
+
+        return timestamps;
+    }
+
+    /// <summary>
+    /// Earlier timestamps must survive unchanged, even when new rows appear.
+    /// </summary>
+    private static void RequirePreserved(
+        List<string> before,
+        List<string> after
+    )
+    {
+        Require(
+            after.Count >= before.Count,
+            "Migration records were removed."
+        );
+
+        for (int index = 0; index < before.Count; index++)
+        {
+            Require(
+                string.Equals(
+                    before[index],
+                    after[index],
+                    StringComparison.Ordinal
+                ),
+                "Migration " + (index + 1) + " changed its timestamp."
+            );
+        }
+    }
+
+    /// <summary>
+    /// Preparing this query verifies the table and named columns exist.
+    /// LIMIT 0 avoids reading or creating any trainer records.
+    /// </summary>
+    private static void CheckTrainerColumns(string databasePath)
+    {
+        using (var connection = OpenReadOnly(databasePath))
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText =
+                @"SELECT twitch_user_id, login_name, display_name,
+                         created_at_utc, updated_at_utc
+                  FROM trainers
+                  LIMIT 0;";
+
+            using (var reader = command.ExecuteReader())
+            {
+                Require(
+                    reader.FieldCount == 5,
+                    "The trainer query returned an unexpected column count."
+                );
+            }
+        }
+    }
+
+    private static SQLiteConnection OpenReadOnly(string databasePath)
+    {
+        var settings = new SQLiteConnectionStringBuilder
         {
             DataSource = databasePath,
             Version = 3,
@@ -121,55 +274,20 @@ public class CPHInline
             DefaultTimeout = 5
         };
 
-        using (var connection = new SQLiteConnection(
-            connectionString.ConnectionString
-        ))
+        var connection = new SQLiteConnection(settings.ConnectionString);
+
+        try
         {
             connection.Open();
-
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText =
-                    @"SELECT version, applied_at_utc
-                      FROM schema_migrations
-                      ORDER BY version;";
-
-                using (var reader = command.ExecuteReader())
-                {
-                    Require(
-                        reader.Read(),
-                        "The migration history is empty."
-                    );
-
-                    Require(
-                        reader.GetInt32(0) == 1,
-                        "The saved migration version is not 1."
-                    );
-
-                    string timestamp = reader.GetString(1);
-
-                    Require(
-                        !string.IsNullOrWhiteSpace(timestamp),
-                        "The migration timestamp is missing."
-                    );
-
-                    // A second row would mean initialization has produced
-                    // unexpected history for this version-1 database.
-                    Require(
-                        !reader.Read(),
-                        "The migration history contains unexpected extra rows."
-                    );
-
-                    return timestamp;
-                }
-            }
+            return connection;
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
         }
     }
 
-    /// <summary>
-    /// Stops the check immediately when an expected condition is false.
-    /// Execute catches and logs the failure.
-    /// </summary>
     private static void Require(bool condition, string message)
     {
         if (!condition)

@@ -5,9 +5,14 @@ PokéHunter Seasons will use SQLite to store viewer progress locally.
 Database initialization is implemented and verified inside Streamer.bot
 using dedicated test databases.
 
-Schema version 1 creates the migration-history table. Trainer records,
-catch storage, redemption processing, and live game integration are
-not implemented yet.
+The current schema version is 2.
+
+Migration 1 creates the migration-history table. Migration 2 creates
+the trainer table. Both migrations are stored as SQL files embedded
+in `PokeHunter.Storage.dll`.
+
+Trainer save/read operations, catch storage, redemption processing,
+and live game integration are not implemented yet.
 
 The collection design below describes the planned storage behaviour.
 
@@ -17,93 +22,129 @@ The storage library is defined by:
 
 `streamerbot/storage/PokeHunter.Storage.csproj`
 
-Its initialization entry point is:
+Its entry point is:
 
 `DatabaseInitializer.Initialize(databasePath)`
 
 The initializer requires a full, normalized absolute file path.
 It creates missing parent directories and opens or creates the database.
 
-Initialization then:
+Initialization:
 
 1. Enables and verifies foreign-key enforcement for its connection.
 2. Starts an immediate write transaction.
-3. Reads the application identifier and schema version.
-4. Initializes an unmarked, empty database or checks an existing one.
-5. Commits the transaction and returns the installed schema version.
+3. Checks the application identifier and schema version.
+4. Validates existing migration history, or requires an empty database.
+5. Applies missing migrations in order.
+6. Validates the resulting migration history.
+7. Commits and returns the installed schema version.
 
+All pending migrations and their history records commit together.
 If initialization fails, it attempts to roll back the transaction.
-Errors are reported to the caller.
 
-Foreign-key enforcement must also be enabled on future connections
-used for game storage; enabling it here does not configure all connections.
+Future storage connections must also enable foreign-key enforcement.
 
-### Schema version 1
+### Migration files
 
-The first migration creates `schema_migrations` with these columns:
+| Version | File                             | Recorded name            |
+| ------- | -------------------------------- | ------------------------ |
+| 1       | `001_CreateMigrationHistory.sql` | Create migration history |
+| 2       | `002_CreateTrainers.sql`         | Create trainers          |
 
-| Column           | Purpose                                      |
-| ---------------- | -------------------------------------------- |
-| `version`        | Unique, positive migration number.           |
-| `name`           | Description of the migration.                |
-| `applied_at_utc` | UTC timestamp recording when it was applied. |
+Files are located in `streamerbot/storage/migrations/`.
 
-Version 1 contains one migration named `Create migration history`.
+Each SQL file is embedded in the storage DLL using an explicit
+`LogicalName` in the project file. Embedding a file does not execute it:
+the initializer's migration registry determines execution order.
 
-SQLite's `user_version` stores the installed schema version.
-Its `application_id` stores the fixed marker `0x50485331`, identifying
-this database family as PokéHunter Seasons.
+SQL files define structural changes. The initializer manages the
+transaction, inserts migration-history records, and updates the version.
 
-The application marker remains stable when future schema versions
-are introduced.
+Do not rename or change previously applied migrations casually.
+Introduce a new migration for subsequent structural changes.
 
-The migration table, history row, application marker, and schema
-version are written within the same transaction.
+### Database markers and migration history
 
-Repeated initialization checks an existing version-1 database without
-replacing its migration record.
+SQLite's `application_id` contains the stable marker `0x50485331`.
+Its `user_version` contains the installed schema version.
+
+The `schema_migrations` table records:
+
+- `version`: the unique, positive migration number.
+- `name`: the migration description.
+- `applied_at_utc`: when the migration was applied.
+
+Existing history records are preserved during upgrades.
+
+A fresh database receives migrations 1 and 2. A valid version-1
+database receives only migration 2. A valid version-2 database
+requires no migration.
+
+### Trainer table
+
+The `trainers` table contains:
+
+| Column           | Purpose                                        |
+| ---------------- | ---------------------------------------------- |
+| `twitch_user_id` | Permanent trainer identity and primary key.    |
+| `login_name`     | Most recently saved Twitch login name.         |
+| `display_name`   | Most recently saved display name.              |
+| `created_at_utc` | When the trainer was first saved in this game. |
+| `updated_at_utc` | When the saved profile last changed.           |
+
+All columns require non-null values and reject empty or
+ordinary-space-only text.
+
+Timestamp formatting and fuller input validation belong to the
+upcoming storage methods.
+
+`Trainer.cs` represents an immutable snapshot of a saved trainer.
+Changing profile information will require an explicit storage operation.
 
 ### Rejection rules
 
 The initializer rejects:
 
-- Negative schema versions or versions newer than this build supports.
+- Negative or newer unsupported schema versions.
 - Version-0 databases containing application objects.
 - Version-0 databases with an existing application marker.
-- Version-1 databases with an unexpected application marker.
-- Version-1 databases whose migration history fails the expected checks.
+- Initialized databases with an unexpected application marker.
+- Migration histories with missing, unexpected, or mismatched records.
 
-This is a compatibility and migration-history check, not a complete
-database integrity audit.
+History validation checks ordered versions, expected names, and
+nonempty timestamps. It is not a complete database integrity audit.
 
 ### Verified manual checks
 
-`streamerbot/tests/DatabaseInitializationCheck.cs` verifies that:
+`DatabaseInitializationCheck.cs` verifies:
 
-- A fresh test database initializes successfully.
-- The installed schema version is 1.
-- Exactly one version-1 migration record exists.
-- Repeated initialization preserves its original timestamp.
-- The same database can be reused across separate action executions.
+- Existing migration timestamps survive initialization or upgrade.
+- Repeated initialization preserves both migration records.
+- A fresh database reaches version 2.
+- The trainer table and its expected columns exist.
 
-It uses `runtime/database-initialization-test.db`.
+The existing test database was successfully upgraded from version 1
+to version 2. On subsequent runs, that same file is already version 2;
+those runs check reuse rather than repeating the version-1 upgrade.
 
-`streamerbot/tests/DatabaseRejectionCheck.cs` verifies that:
+The persistent test file is:
 
-- A database marked as schema version 2 is rejected.
-- An unrelated database containing existing data is rejected.
-- Both rejected database files remain byte-for-byte unchanged.
+`runtime/database-initialization-test.db`
 
-The rejection checks create isolated temporary databases and attempt
-to remove their temporary directory afterward.
+Fresh initialization uses a separate temporary database.
 
-These checks currently target schema version 1. Their fixtures and
-expectations must be reviewed when another migration is introduced.
+`DatabaseRejectionCheck.cs` verifies:
 
-Neither check uses the planned live database, `runtime/pokehunter.db`.
+- A database marked one version newer than the current build is rejected.
+- An unrelated database containing data is rejected.
+- Both rejected files remain byte-for-byte unchanged.
 
-Migration rollback after a partially executed migration and concurrent
-initialization have not yet been explicitly tested.
+Temporary test directories are removed after execution when possible.
+
+Neither action uses the planned live database, `runtime/pokehunter.db`.
+
+Rollback after a partially executed migration, concurrent initialization,
+and trainer data operations have not yet been explicitly tested.
 
 ## Where the database lives
 

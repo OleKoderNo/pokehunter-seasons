@@ -67,8 +67,7 @@ public class CPHInline
     }
 
     /// <summary>
-    /// Simulates a database marked as newer than this build supports.
-    /// The initializer must reject it rather than downgrade it.
+    /// Simulates a schema version newer than this build supports.
     /// </summary>
     private void CheckNewerVersion(string temporaryDirectory)
     {
@@ -79,16 +78,21 @@ public class CPHInline
 
         DatabaseInitializer.Initialize(databasePath);
 
-        // This fixture targets our current version-1 initializer.
-        // Update the fixture when the supported schema version changes.
+        // Stay one version ahead of the initializer.
+        int futureVersion = DatabaseInitializer.CurrentSchemaVersion + 1;
+
+        string versionText = futureVersion.ToString(
+            System.Globalization.CultureInfo.InvariantCulture
+        );
+
         ExecuteFixtureSql(
             databasePath,
-            "PRAGMA user_version = 2;"
+            "PRAGMA user_version = " + versionText + ";"
         );
 
         ExpectRejectedWithoutChanges(
             databasePath,
-            "Unsupported database schema version 2"
+            "Unsupported database schema version " + versionText
         );
 
         CPH.LogInfo(
@@ -96,7 +100,6 @@ public class CPHInline
             "without changing its file."
         );
     }
-
     /// <summary>
     /// Creates an ordinary SQLite database with unrelated content.
     /// A zero schema version alone must not make it eligible for migration.

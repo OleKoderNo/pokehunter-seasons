@@ -6,24 +6,34 @@ using System.IO;
 namespace PokeHunter.Storage
 {
     /// <summary>
-    /// Creates the initial database structure and checks schema compatibility.
-    /// Does not create trainers, award catches, or modify configuration files.
+    /// Creates or upgrades the database using ordered migrations.
+    /// Existing migration history is preserved.
     /// </summary>
     public static class DatabaseInitializer
     {
-        // Increase this only when adding a corresponding migration.
-        public const int CurrentSchemaVersion = 1;
+        public const int CurrentSchemaVersion = 2;
 
-        // A stable project-specific marker: hexadecimal ASCII for "PHS1".
-        // This identifies the database family, not its changing schema version.
+        // Stable database-family identifier: ASCII "PHS1".
+        // This does not change when the schema version increases.
         private const int ApplicationId = 0x50485331;
 
+        // Array position + 1 is the migration version.
+        // Existing entries must remain unchanged once released.
+        private static readonly string[] MigrationNames =
+        {
+            "Create migration history",
+            "Create trainers"
+        };
+
+        private static readonly string[] MigrationResources =
+        {
+            "PokeHunter.Storage.Migrations.001_CreateMigrationHistory.sql",
+            "PokeHunter.Storage.Migrations.002_CreateTrainers.sql"
+        };
+
         /// <summary>
-        /// Initializes a database at an absolute file path.
+        /// Initializes or upgrades a database at a normalized absolute path.
         /// Returns the installed schema version.
-        ///
-        /// Repeated calls preserve an already-initialized database.
-        /// Unsupported versions and unrelated databases are rejected.
         /// </summary>
         public static int Initialize(string databasePath)
         {
@@ -35,8 +45,6 @@ namespace PokeHunter.Storage
                 );
             }
 
-            // Reject relative and drive-relative paths rather than allowing
-            // Streamer.bot's working directory to choose the database location.
             string fullPath = Path.GetFullPath(databasePath);
 
             if (!string.Equals(
@@ -61,10 +69,18 @@ namespace PokeHunter.Storage
                 );
             }
 
-            // Creates missing directories, but preserves existing ones.
+            // Catch mistakes in the migration registry before opening a file.
+            if (MigrationNames.Length != CurrentSchemaVersion ||
+                MigrationResources.Length != CurrentSchemaVersion)
+            {
+                throw new InvalidOperationException(
+                    "The migration registry does not match " +
+                    "CurrentSchemaVersion."
+                );
+            }
+
             Directory.CreateDirectory(directory);
 
-            // A builder safely handles special characters in file paths.
             var connectionString = new SQLiteConnectionStringBuilder
             {
                 DataSource = fullPath,
@@ -79,8 +95,6 @@ namespace PokeHunter.Storage
             {
                 connection.Open();
 
-                // Foreign-key enforcement belongs to each connection.
-                // Enable it before starting a transaction.
                 Execute(connection, "PRAGMA foreign_keys = ON;");
 
                 if (ReadInteger(connection, "PRAGMA foreign_keys;") != 1)
@@ -90,9 +104,8 @@ namespace PokeHunter.Storage
                     );
                 }
 
-                // Obtain the write transaction before reading the version.
-                // Concurrent initializers must not both decide to migrate
-                // the same original database state.
+                // Acquire the write transaction before inspecting history.
+                // All pending migrations commit together.
                 Execute(connection, "BEGIN IMMEDIATE;");
 
                 try
@@ -118,11 +131,7 @@ namespace PokeHunter.Storage
 
                     if (version == 0)
                     {
-                        // Only an unmarked, empty database may receive
-                        // the first migration.
                         RequireEmptyDatabase(connection, applicationId);
-                        ApplyFirstMigration(connection);
-                        version = 1;
                     }
                     else
                     {
@@ -134,10 +143,21 @@ namespace PokeHunter.Storage
                             );
                         }
 
-                        // Check that the version marker agrees with the
-                        // migration history we expect for this first version.
-                        ValidateFirstMigration(connection);
+                        // Validate existing history before modifying anything.
+                        ValidateMigrationHistory(connection, version);
                     }
+
+                    // Version 0 runs migrations 1 and 2.
+                    // Version 1 runs migration 2.
+                    // Version 2 skips this loop.
+                    while (version < CurrentSchemaVersion)
+                    {
+                        int nextVersion = version + 1;
+                        ApplyMigration(connection, nextVersion);
+                        version = nextVersion;
+                    }
+
+                    ValidateMigrationHistory(connection, version);
 
                     Execute(connection, "COMMIT;");
                     return version;
@@ -150,7 +170,6 @@ namespace PokeHunter.Storage
                     }
                     catch (Exception rollbackException)
                     {
-                        // Preserve both errors if rollback also fails.
                         throw new AggregateException(
                             "Database initialization failed, and rollback " +
                             "also reported an error.",
@@ -165,7 +184,7 @@ namespace PokeHunter.Storage
         }
 
         /// <summary>
-        /// Prevents initialization from adopting an unrelated database.
+        /// Only an unmarked, empty database can start at migration 1.
         /// </summary>
         private static void RequireEmptyDatabase(
             SQLiteConnection connection,
@@ -190,28 +209,21 @@ namespace PokeHunter.Storage
         }
 
         /// <summary>
-        /// Installs schema version 1 inside the caller's transaction.
-        /// Future migrations must preserve this migration's history.
+        /// Runs one migration and records it within the existing transaction.
+        /// Never updates or replaces earlier migration records.
         /// </summary>
-        private static void ApplyFirstMigration(
-            SQLiteConnection connection
+        private static void ApplyMigration(
+            SQLiteConnection connection,
+            int version
         )
         {
-            // PRIMARY KEY prevents duplicate migration versions.
-            // NOT NULL requires values for every history field.
-            Execute(
-                connection,
-                @"CREATE TABLE schema_migrations (
-                    version INTEGER NOT NULL PRIMARY KEY
-                        CHECK (version > 0),
-                    name TEXT NOT NULL,
-                    applied_at_utc TEXT NOT NULL
-                );"
-            );
+            int index = version - 1;
+
+            string sql = ReadMigrationSql(MigrationResources[index]);
+            Execute(connection, sql);
 
             using (var command = connection.CreateCommand())
             {
-                // Parameters pass values separately from the SQL itself.
                 command.CommandText =
                     @"INSERT INTO schema_migrations (
                         version,
@@ -224,10 +236,10 @@ namespace PokeHunter.Storage
                         @appliedAtUtc
                     );";
 
-                command.Parameters.AddWithValue("@version", 1);
+                command.Parameters.AddWithValue("@version", version);
                 command.Parameters.AddWithValue(
                     "@name",
-                    "Create migration history"
+                    MigrationNames[index]
                 );
                 command.Parameters.AddWithValue(
                     "@appliedAtUtc",
@@ -240,45 +252,106 @@ namespace PokeHunter.Storage
                 command.ExecuteNonQuery();
             }
 
-            // Fixed SQL constants, not values supplied by a viewer.
-            // These markers commit together with the table and history row.
-            Execute(connection, "PRAGMA application_id = 0x50485331;");
-            Execute(connection, "PRAGMA user_version = 1;");
+            // Set the database-family marker only during first initialization.
+            if (version == 1)
+            {
+                Execute(connection, "PRAGMA application_id = 0x50485331;");
+            }
+
+            // PRAGMA assignment uses a trusted integer from our own registry.
+            // No viewer-provided text is inserted into this SQL.
+            Execute(
+                connection,
+                "PRAGMA user_version = " +
+                version.ToString(CultureInfo.InvariantCulture) + ";"
+            );
         }
 
         /// <summary>
-        /// Checks the expected history for an existing version-1 database.
-        /// This is a consistency check, not a full database integrity audit.
+        /// Requires exactly the expected ordered history for this version.
+        /// This is not a complete database integrity audit.
         /// </summary>
-        private static void ValidateFirstMigration(
-            SQLiteConnection connection
+        private static void ValidateMigrationHistory(
+            SQLiteConnection connection,
+            int version
         )
         {
-            int totalRows = ReadInteger(
-                connection,
-                "SELECT COUNT(*) FROM schema_migrations;"
-            );
-
-            int matchingRows = ReadInteger(
-                connection,
-                @"SELECT COUNT(*)
-                  FROM schema_migrations
-                  WHERE version = 1
-                    AND name = 'Create migration history';"
-            );
-
-            if (totalRows != 1 || matchingRows != 1)
+            using (var command = connection.CreateCommand())
             {
-                throw new InvalidDataException(
-                    "The database migration history does not match " +
-                    "schema version 1."
-                );
+                command.CommandText =
+                    @"SELECT version, name, applied_at_utc
+                      FROM schema_migrations
+                      ORDER BY version;";
+
+                using (var reader = command.ExecuteReader())
+                {
+                    for (int expected = 1; expected <= version; expected++)
+                    {
+                        if (!reader.Read() ||
+                            reader.GetInt32(0) != expected ||
+                            reader.IsDBNull(1) ||
+                            !string.Equals(
+                                reader.GetString(1),
+                                MigrationNames[expected - 1],
+                                StringComparison.Ordinal
+                            ) ||
+                            reader.IsDBNull(2) ||
+                            string.IsNullOrWhiteSpace(reader.GetString(2)))
+                        {
+                            throw new InvalidDataException(
+                                "The database migration history does not " +
+                                "match schema version " + version + "."
+                            );
+                        }
+                    }
+
+                    if (reader.Read())
+                    {
+                        throw new InvalidDataException(
+                            "The database migration history contains " +
+                            "unexpected extra records."
+                        );
+                    }
+                }
             }
         }
 
         /// <summary>
-        /// Executes SQL that does not return a result we need to read.
+        /// Reads migration SQL embedded in the storage library.
         /// </summary>
+        private static string ReadMigrationSql(string resourceName)
+        {
+            var assembly = typeof(DatabaseInitializer).Assembly;
+
+            using (Stream stream =
+                assembly.GetManifestResourceStream(resourceName))
+            {
+                if (stream == null)
+                {
+                    throw new InvalidOperationException(
+                        "Embedded migration SQL was not found: '" +
+                        resourceName + "'. Check the EmbeddedResource " +
+                        "and LogicalName entries in PokeHunter.Storage.csproj."
+                    );
+                }
+
+                using (var reader = new StreamReader(stream))
+                {
+                    string sql = reader.ReadToEnd();
+
+                    if (string.IsNullOrWhiteSpace(sql))
+                    {
+                        throw new InvalidDataException(
+                            "Embedded migration SQL is empty: '" +
+                            resourceName + "'."
+                        );
+                    }
+
+                    return sql;
+                }
+            }
+        }
+
         private static void Execute(
             SQLiteConnection connection,
             string sql
@@ -291,9 +364,6 @@ namespace PokeHunter.Storage
             }
         }
 
-        /// <summary>
-        /// Reads one integer from the first column of the first result row.
-        /// </summary>
         private static int ReadInteger(
             SQLiteConnection connection,
             string sql
@@ -302,7 +372,6 @@ namespace PokeHunter.Storage
             using (var command = connection.CreateCommand())
             {
                 command.CommandText = sql;
-
                 object result = command.ExecuteScalar();
 
                 if (result == null || result == DBNull.Value)

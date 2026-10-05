@@ -51,4 +51,19 @@
             Text="System.Data.SQLite.dll was not found. Check StreamerBotPath and follow docs/SQLITE_SETUP.md."
         />
     </Target>
+
+    <!--
+        Package migration SQL inside the storage DLL.
+        Logical names must match the names used by the migration loader.
+        Embedding a file does not automatically execute it.
+    -->
+    <ItemGroup>
+        <EmbeddedResource Include="migrations/001_CreateMigrationHistory.sql">
+            <LogicalName>PokeHunter.Storage.Migrations.001_CreateMigrationHistory.sql</LogicalName>
+        </EmbeddedResource>
+
+        <EmbeddedResource Include="migrations/002_CreateTrainers.sql">
+            <LogicalName>PokeHunter.Storage.Migrations.002_CreateTrainers.sql</LogicalName>
+        </EmbeddedResource>
+    </ItemGroup>
 </Project>
