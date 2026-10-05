@@ -33,8 +33,15 @@ update Twitch rewards or run the catching game.
 Game, season, and event configurations now have loaders, validators,
 and standalone checks.
 
-Season selection is also verified inside Streamer.bot. Event selection
-is currently verified through the standalone checks.
+Game, season, and event configuration loading is verified inside
+Streamer.bot through the manual configuration-check action.
+
+The action uses one captured timestamp to select the active season
+and event. It logs their settings and displays the checked time in
+each schedule's configured time zone.
+
+An inactive event is valid. A missing active season is reported as a
+warning, and the check returns false because catching requires a season.
 
 These checks do not perform encounters, award Pokémon, or change
 channel-point rewards. Overlay configuration loading is not implemented yet.

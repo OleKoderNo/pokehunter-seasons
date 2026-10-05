@@ -476,9 +476,43 @@ Invalid configuration examples are written to a temporary directory.
 The supplied configuration files are not modified. Temporary files
 are removed after execution when possible.
 
-Event loading and selection are currently verified through these
-standalone checks. They have not yet been connected to the manual
-Streamer.bot configuration action or a live catching action.
+Event loading and selection are verified through both the standalone
+checks and the manual Streamer.bot configuration action.
+
+### Manual configuration check in Streamer.bot
+
+The action source is `streamerbot/tests/GameConfigurationCheck.cs`.
+
+It loads and validates:
+
+- `config/game.json`
+- `config/seasons.json`
+- `config/events.json`
+
+It captures the current UTC time once and uses that same instant to
+select the active season and event. Local-time logs use the configured
+time zone for each schedule.
+
+The action logs the active season's unlocked generations and the
+active event's weight, generation restrictions, and inclusion-selector
+counts.
+
+Selector counts are not Pokémon counts. An evolution-family selector,
+for example, may eventually match several Pokémon in the catalogue.
+
+No active event is a normal result and does not fail the check.
+No active season produces a warning and returns false.
+Loading or validation errors are logged and return false.
+
+This action verifies configuration integration only. It does not
+perform encounters, award catches, or apply event rules to a Pokémon
+pool.
+
+After changing shared configuration code, rebuild and replace
+`PokeHunter.Core.dll` while Streamer.bot is fully closed.
+
+After changing the action source, copy the updated source into its
+Execute C# Code sub-action, compile, and save it.
 
 ### What the checks verify
 
