@@ -672,8 +672,15 @@ Current storage functionality includes:
 - Trainer profile creation, retrieval, and name updates.
 - Season tables and the `StoredSeason` model.
 
-Season registration and retrieval through a repository are not
-implemented yet.
+Season registration and retrieval are implemented through
+`SeasonRepository`.
+
+Registration saves a season and its generations in one transaction.
+Equivalent registrations preserve the existing record. Conflicting
+names, boundaries, or generation lists are rejected without changing
+stored data.
+
+The repository is not yet connected to the live catching workflow.
 
 See [Database Design](DATABASE.md) for schema details and implementation
 limits.
@@ -687,6 +694,7 @@ The current database action sources are:
 | `streamerbot/tests/DatabaseInitializationCheck.cs` | `PokéHunter — Database Initialization Check` |
 | `streamerbot/tests/DatabaseRejectionCheck.cs`      | `PokéHunter — Database Rejection Check`      |
 | `streamerbot/tests/TrainerStorageCheck.cs`         | `PokéHunter — Trainer Storage Check`         |
+| `streamerbot/tests/SeasonStorageCheck.cs`          | `PokéHunter — Season Storage Check`          |
 
 Create a separate action and Execute C# Code sub-action for each file.
 
@@ -799,6 +807,38 @@ A successful run ends with:
 
 The check does not contact Twitch or require a channel-point redemption.
 It uses its own temporary database and attempts to remove it afterward.
+
+### Season storage check
+
+`streamerbot/tests/SeasonStorageCheck.cs` uses a temporary database
+containing fictional seasons.
+
+Use the same assembly references as the other database checks.
+No `ProjectFolder` setting is required.
+
+The check verifies that:
+
+- An unknown season returns `null`.
+- Registration stores UTC timestamps and preserves the supplied instants.
+- A separate repository instance can retrieve the saved record.
+- Equivalent registrations preserve the original ID and creation timestamp.
+- Different timestamp offsets and generation ordering do not create conflicts.
+- Conflicting names, boundaries, and generation lists are rejected.
+- Invalid generation lists do not insert records.
+- International IDs use case-insensitive identity.
+- Different seasons remain separate.
+- A deliberately failed generation insert rolls back the entire registration.
+- Registration succeeds after the deliberate failure is removed.
+
+A successful run ends with:
+
+`[PokéHunter] All season storage checks passed.`
+
+The check attempts to remove its temporary directory after execution.
+It does not use the live game database.
+
+These checks do not yet exercise concurrent registration from
+multiple running actions.
 
 ### Earlier SQLite persistence check
 

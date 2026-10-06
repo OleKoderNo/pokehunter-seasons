@@ -14,8 +14,6 @@ The current schema version is 3.
 All three migrations are stored as SQL files embedded in
 `PokeHunter.Storage.dll`.
 
-Season registration and retrieval are not implemented yet.
-
 Trainer profile creation, retrieval, and name updates are implemented
 and verified through a manual Streamer.bot test action.
 
@@ -442,3 +440,60 @@ database stores real viewer catches.
 4. Add redemption records and failure-streak updates.
 5. Verify uniqueness rules and transaction rollback.
 6. Connect storage to the encounter and redemption logic.
+
+## Season repository
+
+`streamerbot/storage/SeasonRepository.cs` provides two operations:
+
+- `FindById` returns a stored season or `null` when the ID is unknown.
+- `Register` saves a new season or returns an equivalent existing record.
+
+The database must already be initialized. The repository does not
+create databases or run migrations.
+
+### Identity and equivalent registrations
+
+Season IDs are compared using `OrdinalIgnoreCase` in C#.
+Original ID capitalization is preserved.
+
+The repository performs this comparison explicitly because SQLite's
+built-in `NOCASE` collation only handles ASCII case differences.
+
+Registration considers definitions equivalent when:
+
+- Their IDs match without regard to capitalization.
+- Their names match exactly.
+- Their starts and exclusive ends represent the same instants.
+- Their unlocked-generation sets are identical.
+
+Generation order does not matter. Timestamps are stored in UTC.
+
+Equivalent registration preserves the original creation timestamp
+and does not insert duplicate records.
+
+### Conflicting definitions
+
+Registration rejects an existing ID with a different name, start,
+exclusive end, or generation set.
+
+Stored seasons are not automatically overwritten when configuration
+changes. An explicit season-editing workflow is not implemented.
+
+Schedule continuity remains the configuration validator's responsibility.
+The repository validates the individual season being registered.
+
+### Atomic registration
+
+The season and its generation rows are inserted in one transaction.
+
+`BEGIN IMMEDIATE` reserves the write transaction before checking
+whether the season exists. A failure rolls back the registration.
+
+The manual `SeasonStorageCheck.cs` action has verified creation,
+retrieval, equivalent registrations, conflict rejection, invalid
+generation lists, international IDs, and rollback after a deliberately
+failed generation insert.
+
+Concurrent registration from multiple actions has not yet been tested.
+
+This functionality uses schema version 3 and requires no new migration.
