@@ -14,6 +14,17 @@ public class CPHInline
     private const string ProjectFolder =
         @"C:\Users\ohfb9\Documents\Coding\Private\Streaming\pokehunter-seasons";
 
+    // Keep test expectations explicit and independent of the initializer.
+    // A missing migration should fail the test, not redefine its expectation.
+    private const int ExpectedSchemaVersion = 3;
+
+    private static readonly string[] ExpectedMigrationNames =
+    {
+        "Create migration history",
+        "Create trainers",
+        "Create seasons"
+    };
+
 #if EXTERNAL_EDITOR
     public new bool Execute()
 #else
@@ -35,8 +46,8 @@ public class CPHInline
 
             bool existedBefore = File.Exists(databasePath);
 
-            // Read history before initialization so an upgrade must preserve
-            // records written by the previous application version.
+            // Capture existing history before initialization so upgrades
+            // must preserve timestamps written by earlier versions.
             List<string> originalHistory = existedBefore
                 ? ReadHistory(databasePath)
                 : new List<string>();
@@ -44,21 +55,21 @@ public class CPHInline
             int version = DatabaseInitializer.Initialize(databasePath);
 
             Require(
-                version == 2,
-                "Expected schema version 2."
+                version == ExpectedSchemaVersion,
+                "Initialization returned an unexpected schema version."
             );
 
             List<string> installedHistory = ReadHistory(databasePath);
 
             Require(
-                installedHistory.Count == 2,
-                "Expected exactly two migration records."
+                installedHistory.Count == ExpectedSchemaVersion,
+                "The installed migration count is incorrect."
             );
 
             RequirePreserved(originalHistory, installedHistory);
-            CheckTrainerColumns(databasePath);
+            CheckExpectedColumns(databasePath);
 
-            // Repeating initialization must preserve both migration records.
+            // Running initialization again must preserve the complete history.
             int repeatedVersion = DatabaseInitializer.Initialize(databasePath);
             List<string> repeatedHistory = ReadHistory(databasePath);
 
@@ -76,10 +87,15 @@ public class CPHInline
 
             CPH.LogInfo(
                 "[PokéHunter] PASS: Repeated initialization preserved " +
-                "both migration records."
+                "all three migration records."
             );
 
-            // A fresh database must run the complete migration sequence.
+            CPH.LogInfo(
+                "[PokéHunter] PASS: Trainer and season tables contain " +
+                "the expected columns."
+            );
+
+            // A separate fresh database checks the complete migration sequence.
             Directory.CreateDirectory(temporaryDirectory);
 
             string freshPath = Path.Combine(
@@ -88,20 +104,21 @@ public class CPHInline
             );
 
             Require(
-                DatabaseInitializer.Initialize(freshPath) == 2,
-                "A fresh database did not reach version 2."
+                DatabaseInitializer.Initialize(freshPath) ==
+                    ExpectedSchemaVersion,
+                "A fresh database did not reach the expected version."
             );
 
             Require(
-                ReadHistory(freshPath).Count == 2,
-                "A fresh database did not record both migrations."
+                ReadHistory(freshPath).Count == ExpectedSchemaVersion,
+                "A fresh database did not record every migration."
             );
 
-            CheckTrainerColumns(freshPath);
+            CheckExpectedColumns(freshPath);
 
             CPH.LogInfo(
-                "[PokéHunter] PASS: A fresh database reached version 2 " +
-                "with the trainer table."
+                "[PokéHunter] PASS: A fresh database reached version 3 " +
+                "with trainer and season tables."
             );
 
             CPH.LogInfo(
@@ -153,17 +170,11 @@ public class CPHInline
     }
 
     /// <summary>
-    /// Reads each migration timestamp and verifies its ordered identity.
-    /// Supports the version-1 fixture before its upgrade to version 2.
+    /// Reads timestamps while verifying ordered migration identities.
+    /// Accepts earlier complete histories before initialization upgrades them.
     /// </summary>
     private static List<string> ReadHistory(string databasePath)
     {
-        string[] expectedNames =
-        {
-            "Create migration history",
-            "Create trainers"
-        };
-
         var timestamps = new List<string>();
 
         using (var connection = OpenReadOnly(databasePath))
@@ -181,13 +192,13 @@ public class CPHInline
                     int index = timestamps.Count;
 
                     Require(
-                        index < expectedNames.Length,
+                        index < ExpectedMigrationNames.Length,
                         "Unexpected extra migration record."
                     );
 
                     Require(
                         reader.GetInt32(0) == index + 1 &&
-                        reader.GetString(1) == expectedNames[index],
+                        reader.GetString(1) == ExpectedMigrationNames[index],
                         "Unexpected migration version or name."
                     );
 
@@ -212,7 +223,7 @@ public class CPHInline
     }
 
     /// <summary>
-    /// Earlier timestamps must survive unchanged, even when new rows appear.
+    /// Existing history must remain unchanged when new migrations are added.
     /// </summary>
     private static void RequirePreserved(
         List<string> before,
@@ -238,25 +249,60 @@ public class CPHInline
     }
 
     /// <summary>
-    /// Preparing this query verifies the table and named columns exist.
-    /// LIMIT 0 avoids reading or creating any trainer records.
+    /// Checks named columns without reading or inserting application records.
+    /// Constraint behaviour is checked separately from column existence.
     /// </summary>
-    private static void CheckTrainerColumns(string databasePath)
+    private static void CheckExpectedColumns(string databasePath)
     {
         using (var connection = OpenReadOnly(databasePath))
-        using (var command = connection.CreateCommand())
         {
-            command.CommandText =
+            CheckColumns(
+                connection,
                 @"SELECT twitch_user_id, login_name, display_name,
                          created_at_utc, updated_at_utc
                   FROM trainers
-                  LIMIT 0;";
+                  LIMIT 0;",
+                5,
+                "trainers"
+            );
+
+            CheckColumns(
+                connection,
+                @"SELECT season_id, name, starts_at_utc,
+                         ends_at_exclusive_utc, created_at_utc
+                  FROM seasons
+                  LIMIT 0;",
+                5,
+                "seasons"
+            );
+
+            CheckColumns(
+                connection,
+                @"SELECT season_id, generation
+                  FROM season_generations
+                  LIMIT 0;",
+                2,
+                "season_generations"
+            );
+        }
+    }
+
+    private static void CheckColumns(
+        SQLiteConnection connection,
+        string sql,
+        int expectedCount,
+        string tableName
+    )
+    {
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = sql;
 
             using (var reader = command.ExecuteReader())
             {
                 Require(
-                    reader.FieldCount == 5,
-                    "The trainer query returned an unexpected column count."
+                    reader.FieldCount == expectedCount,
+                    "Unexpected column count for " + tableName + "."
                 );
             }
         }

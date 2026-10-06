@@ -65,5 +65,9 @@
         <EmbeddedResource Include="migrations/002_CreateTrainers.sql">
             <LogicalName>PokeHunter.Storage.Migrations.002_CreateTrainers.sql</LogicalName>
         </EmbeddedResource>
+
+        <EmbeddedResource Include="migrations/003_CreateSeasons.sql">
+            <LogicalName>PokeHunter.Storage.Migrations.003_CreateSeasons.sql</LogicalName>
+        </EmbeddedResource>
     </ItemGroup>
 </Project>

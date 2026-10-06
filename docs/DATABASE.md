@@ -5,11 +5,16 @@ PokéHunter Seasons will use SQLite to store viewer progress locally.
 Database initialization is implemented and verified inside Streamer.bot
 using dedicated test databases.
 
-The current schema version is 2.
+The current schema version is 3.
 
-Migration 1 creates the migration-history table. Migration 2 creates
-the trainer table. Both migrations are stored as SQL files embedded
-in `PokeHunter.Storage.dll`.
+- Migration 1 creates the migration-history table.
+- Migration 2 creates the trainer table.
+- Migration 3 creates the `seasons` and `season_generations` tables.
+
+All three migrations are stored as SQL files embedded in
+`PokeHunter.Storage.dll`.
+
+Season registration and retrieval are not implemented yet.
 
 Trainer profile creation, retrieval, and name updates are implemented
 and verified through a manual Streamer.bot test action.
@@ -53,6 +58,7 @@ Future storage connections must also enable foreign-key enforcement.
 | ------- | -------------------------------- | ------------------------ |
 | 1       | `001_CreateMigrationHistory.sql` | Create migration history |
 | 2       | `002_CreateTrainers.sql`         | Create trainers          |
+| 3       | `003_CreateSeasons.sql`          | Create seasons           |
 
 Files are located in `streamerbot/storage/migrations/`.
 
@@ -79,9 +85,9 @@ The `schema_migrations` table records:
 
 Existing history records are preserved during upgrades.
 
-A fresh database receives migrations 1 and 2. A valid version-1
-database receives only migration 2. A valid version-2 database
-requires no migration.
+A fresh database receives migrations 1 through 3. Existing supported
+databases receive only their missing migrations. A valid version-3
+database requires no migration.
 
 ### Trainer table
 
@@ -131,6 +137,30 @@ create databases or run migrations.
 Call `DatabaseInitializer.Initialize` during setup before using the
 repository.
 
+### Season tables
+
+`seasons` stores the season ID, display name, UTC boundaries, and
+registration timestamp.
+
+`season_generations` stores one row for each generation unlocked
+within a saved season.
+
+Its combined primary key prevents duplicate generation entries within
+the same season. A foreign key requires each generation record to
+reference an existing season.
+
+The foreign key restricts deletion or renaming of a parent season while
+generation records reference it.
+
+`StoredSeason.cs` represents an immutable snapshot. Its generation list
+is copied into a read-only collection.
+
+Configuration remains responsible for active-season selection.
+The database provides persistent season references for future catches.
+
+Season registration, configuration-change handling, and retrieval are
+the next implementation steps.
+
 ### Rejection rules
 
 The initializer rejects:
@@ -149,13 +179,16 @@ nonempty timestamps. It is not a complete database integrity audit.
 `DatabaseInitializationCheck.cs` verifies:
 
 - Existing migration timestamps survive initialization or upgrade.
-- Repeated initialization preserves both migration records.
-- A fresh database reaches version 2.
-- The trainer table and its expected columns exist.
+- Repeated initialization preserves all three migration records.
+- A fresh database reaches version 3.
+- Trainer and season tables contain their expected columns.
 
-The existing test database was successfully upgraded from version 1
-to version 2. On subsequent runs, that same file is already version 2;
-those runs check reuse rather than repeating the version-1 upgrade.
+The persistent test database has successfully upgraded from version 1
+to 2 and subsequently from version 2 to 3. Later runs reuse version 3;
+they do not recreate those earlier upgrade scenarios.
+
+The column checks do not yet verify season foreign-key or uniqueness
+constraint behaviour.
 
 The persistent test file is:
 

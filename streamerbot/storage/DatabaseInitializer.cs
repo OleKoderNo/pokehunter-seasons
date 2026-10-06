@@ -11,26 +11,27 @@ namespace PokeHunter.Storage
     /// </summary>
     public static class DatabaseInitializer
     {
-        public const int CurrentSchemaVersion = 2;
+        public const int CurrentSchemaVersion = 3;
 
         // Stable database-family identifier: ASCII "PHS1".
         // This does not change when the schema version increases.
         private const int ApplicationId = 0x50485331;
 
         // Array position + 1 is the migration version.
-        // Existing entries must remain unchanged once released.
+        // Preserve existing names and ordering.
         private static readonly string[] MigrationNames =
         {
             "Create migration history",
-            "Create trainers"
+            "Create trainers",
+            "Create seasons"
         };
 
         private static readonly string[] MigrationResources =
         {
             "PokeHunter.Storage.Migrations.001_CreateMigrationHistory.sql",
-            "PokeHunter.Storage.Migrations.002_CreateTrainers.sql"
+            "PokeHunter.Storage.Migrations.002_CreateTrainers.sql",
+            "PokeHunter.Storage.Migrations.003_CreateSeasons.sql"
         };
-
         /// <summary>
         /// Initializes or upgrades a database at a normalized absolute path.
         /// Returns the installed schema version.
@@ -147,9 +148,9 @@ namespace PokeHunter.Storage
                         ValidateMigrationHistory(connection, version);
                     }
 
-                    // Version 0 runs migrations 1 and 2.
-                    // Version 1 runs migration 2.
-                    // Version 2 skips this loop.
+                    // Apply only migrations newer than the installed version.
+                    // Fresh databases receive the complete sequence.
+                    // Current databases skip this loop.
                     while (version < CurrentSchemaVersion)
                     {
                         int nextVersion = version + 1;
