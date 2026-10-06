@@ -11,8 +11,11 @@ Migration 1 creates the migration-history table. Migration 2 creates
 the trainer table. Both migrations are stored as SQL files embedded
 in `PokeHunter.Storage.dll`.
 
-Trainer save/read operations, catch storage, redemption processing,
-and live game integration are not implemented yet.
+Trainer profile creation, retrieval, and name updates are implemented
+and verified through a manual Streamer.bot test action.
+
+Catch storage, redemption processing, and live game integration are
+not implemented yet.
 
 The collection design below describes the planned storage behaviour.
 
@@ -99,7 +102,34 @@ Timestamp formatting and fuller input validation belong to the
 upcoming storage methods.
 
 `Trainer.cs` represents an immutable snapshot of a saved trainer.
-Changing profile information will require an explicit storage operation.
+
+`TrainerRepository.cs` provides:
+
+- `FindByTwitchUserId`: returns the saved trainer or `null` when missing.
+- `SaveProfile`: creates a trainer or updates their saved names.
+
+The Twitch user ID identifies the trainer permanently. Name changes
+update the existing record and preserve its creation timestamp.
+
+Saving an unchanged profile preserves both timestamps. Changing either
+name updates `updated_at_utc`.
+
+The repository rejects missing values, surrounding whitespace, and
+control characters. It preserves capitalization and international text.
+It does not attempt to reproduce Twitch's complete naming rules.
+
+SQL parameters separate profile values from SQL instructions.
+
+The lookup and save run within one immediate write transaction.
+Database errors propagate to the caller rather than being reported
+as successful saves or missing trainers.
+
+The repository requires an existing, initialized database with the
+expected application marker and current schema version. It does not
+create databases or run migrations.
+
+Call `DatabaseInitializer.Initialize` during setup before using the
+repository.
 
 ### Rejection rules
 
@@ -143,8 +173,27 @@ Temporary test directories are removed after execution when possible.
 
 Neither action uses the planned live database, `runtime/pokehunter.db`.
 
+`TrainerStorageCheck.cs` verifies:
+
+- An unknown trainer returns `null`.
+- A saved trainer can be read through a separate repository instance.
+- New trainer timestamps use UTC and initially match.
+- Saving an unchanged profile preserves both timestamps.
+- Renaming preserves identity and creation time while updating the profile.
+- Different trainers remain separate.
+- Repeated saves do not create duplicate trainer rows.
+- A blank login name is rejected without changing the saved profile.
+
+The action uses synthetic profiles in a fresh temporary database and
+attempts to remove its temporary directory afterward.
+
+A fixed old update timestamp is injected into the test fixture so
+timestamp checks do not depend on execution speed or artificial delays.
+This fixture modification is not part of normal trainer storage.
+
 Rollback after a partially executed migration, concurrent initialization,
-and trainer data operations have not yet been explicitly tested.
+concurrent trainer writes, and the remaining input-validation cases
+have not yet been explicitly tested.
 
 ## Where the database lives
 

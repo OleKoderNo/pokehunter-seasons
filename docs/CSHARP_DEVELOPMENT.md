@@ -858,6 +858,7 @@ The action source files are:
 
 - `streamerbot/tests/DatabaseInitializationCheck.cs`
 - `streamerbot/tests/DatabaseRejectionCheck.cs`
+- `streamerbot/tests/TrainerStorageCheck.cs`
 
 Create a separate Streamer.bot action for each file. Add an Execute
 C# Code sub-action and paste the complete corresponding source file.
@@ -907,6 +908,32 @@ After updating test source, replace the pasted code in the corresponding
 Streamer.bot sub-action, then save and compile it before running.
 
 See [Database Design](DATABASE.md) for migration details and coverage.
+
+### Trainer storage check
+
+Create an action named `PokéHunter — Trainer Storage Check` and paste
+the complete contents of `streamerbot/tests/TrainerStorageCheck.cs`
+into an Execute C# Code sub-action.
+
+Use the same assembly references as the other database checks:
+
+- `PokeHunter.Storage.dll`
+- `System.Data.SQLite.dll`
+- The .NET Framework `System.Data.dll`
+
+Build and deploy the updated storage library before compiling the action.
+
+The check creates a temporary database containing synthetic trainers.
+It verifies profile creation, retrieval, unchanged saves, name updates,
+separate identities, and rejection of a blank login name.
+
+A successful run ends with:
+
+`[PokéHunter] All trainer storage checks passed.`
+
+The action does not require a Twitch redemption, contact Twitch,
+or modify the live game database. It attempts to remove its temporary
+database directory after execution.
 
 ## Troubleshooting
 
