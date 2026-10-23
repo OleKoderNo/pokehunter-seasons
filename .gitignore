@@ -22,3 +22,10 @@ streamerbot/StreamerBot.local.props
 # Standalone C# test output
 tests/**/bin/
 tests/**/obj/
+
+# Generated Pokémon catalogues.
+# Rebuild using the documented npm import commands.
+/data/catalogue/
+
+# Local PokéAPI response cache.
+/cache/
