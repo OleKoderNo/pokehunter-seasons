@@ -232,6 +232,7 @@ namespace PokeHunter.Tests.Catalogue
                 EncounterOwnershipChecks.Run(catalogue);
                 EncounterVariantChecks.Run();
                 EncounterAttemptChecks.Run(catalogue);
+                RedemptionSessionChecks.Run(catalogue);
 
                 Console.WriteLine("All catalogue checks passed.");
                 return 0;

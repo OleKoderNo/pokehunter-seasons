@@ -120,8 +120,17 @@ the catalogue. It verifies new entries, regular duplicates, completed normal
 collections without forced shinies, shiny state on unavailable attempts,
 and protection skipping the shiny draw.
 
-The engine returns an outcome without saving catches. Multi-attempt
-redemption sessions and persistence are not yet connected.
+The attempt engine returns an outcome without saving catches.
+RedemptionSessionRunner coordinates multiple attempts, preserves shiny
+protection within a redemption, stops at the first new entry, and calculates
+the next failure streak.
+
+RedemptionSessionChecks covers immediate success, the eight-attempt shiny
+example, exhausted attempts, protection resetting between redemptions,
+technical-error propagation, and invalid streaks.
+
+Session results are proposed outcomes. Database persistence and live Twitch
+redemption handling are not yet connected.
 
 ### Preserve regression coverage
 
