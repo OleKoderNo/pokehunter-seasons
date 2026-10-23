@@ -77,9 +77,16 @@ counterparts, rarity and broken references, duplicate IDs, missing group members
 nullable media, independent index copies, eligibility, category construction, and
 deterministic weighted selection.
 
-Weighted-selection checks cover interval boundaries, proportional weights, single-item
-pools, invalid inputs, and input preservation. They do not test a random-number generator
-or execute a complete encounter.
+Weighted-selection checks cover interval boundaries, proportional weights,
+single-item pools, invalid inputs, and input preservation.
+
+Weighted-roller checks verify separate draws, single-item selection,
+empty-pool rejection, and invalid or missing random sources.
+
+Encounter-group selection checks verify separate category/group draws,
+preservation of category-specific costume entries, and empty pools returning
+no selection without consuming randomness. They use predetermined values,
+not statistical tests of the gameplay random-number generator.
 
 Eligibility/category checks use fixed test schedules, not every event in config/events.json.
 
@@ -97,8 +104,10 @@ Use fresh fixtures and change only the behavior under test. Expected failures mu
 the intended error, not accept any exception. Print PASS only after assertions succeed.
 
 Configuration helpers include CheckAssert, TestJsonFiles, and EventTestFixtures.
-Catalogue Program calls CatalogueIndexChecks, EligibilityChecks, and
-WeightedSelectionChecks; EligibilityChecks calls EncounterCategoryChecks. These checks cover selected behaviors, not every validation branch.
+Catalogue Program calls CatalogueIndexChecks, EligibilityChecks,
+WeightedSelectionChecks, WeightedRollerChecks, and
+EncounterGroupSelectionChecks. EligibilityChecks calls EncounterCategoryChecks.
+These checks cover selected behaviors, not every validation branch.
 
 ## Install shared libraries
 

@@ -224,6 +224,9 @@ namespace PokeHunter.Tests.Catalogue
                 // Test reusable lookups without removing any existing loader checks.
                 CatalogueIndexChecks.Run(catalogue);
                 EligibilityChecks.Run(catalogue);
+                WeightedSelectionChecks.Run();
+                WeightedRollerChecks.Run();
+                EncounterGroupSelectionChecks.Run(catalogue);
 
                 Console.WriteLine("All catalogue checks passed.");
                 return 0;
