@@ -115,6 +115,14 @@ not additions to the generated catalogue.
 Program also calls EncounterOwnershipChecks and EncounterVariantChecks.
 These components do not yet persist catches or process complete redemptions.
 
+EncounterAttemptChecks runs the connected single-attempt engine against
+the catalogue. It verifies new entries, regular duplicates, completed normal
+collections without forced shinies, shiny state on unavailable attempts,
+and protection skipping the shiny draw.
+
+The engine returns an outcome without saving catches. Multi-attempt
+redemption sessions and persistence are not yet connected.
+
 ### Preserve regression coverage
 
 Check classes are explicitly called, not automatically discovered. Call a new group's

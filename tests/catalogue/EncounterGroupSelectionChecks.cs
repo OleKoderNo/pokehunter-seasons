@@ -142,7 +142,8 @@ namespace PokeHunter.Tests.Catalogue
         /// Fixed dates keep the test independent of today's date.
         /// </summary>
         internal static IReadOnlyList<EncounterCategory> CreateCategories(
-            CatalogueDocument catalogue
+            CatalogueDocument catalogue,
+            bool isShiny = false
         )
         {
             var start = new DateTimeOffset(
@@ -219,7 +220,7 @@ namespace PokeHunter.Tests.Catalogue
             return EncounterCategoryBuilder.Build(
                 index,
                 pool,
-                false,
+                isShiny,
                 1.0,
                 rarityWeights
             );
