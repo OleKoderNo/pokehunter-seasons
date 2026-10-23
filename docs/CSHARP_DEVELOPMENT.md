@@ -1200,3 +1200,69 @@ catalogue or connect it to live redemptions.
 
 Each call to CatalogueLoader.Load reads and validates the file.
 Runtime caching and reusable lookup dictionaries are separate work.
+
+## Reusable catalogue lookups
+
+CatalogueIndex validates a CatalogueDocument and stores independent
+copies of its entries and groups in dictionaries.
+
+The runtime can retain one index for repeated lookups. FindEntry,
+FindGroup, and GetGroupEntries do not read the catalogue file.
+
+- FindEntry returns an entry copy, or null for an unknown ID.
+- FindGroup returns a group copy, or null for an unknown ID.
+- GetGroupEntries returns copies of a group's entries and rejects
+  unknown group IDs.
+- GroupIds exposes the group IDs through a read-only collection.
+
+IDs are matched exactly and case-sensitively. Blank IDs and surrounding
+whitespace are rejected.
+
+Returned records can be modified without changing the index. Nested
+lists and media objects are copied too. Changes to the source document
+after construction also leave the index unchanged.
+
+The index does not filter season, event, ownership, or shiny eligibility.
+It also does not create an application-wide cache automatically.
+Runtime integration must retain and reuse the instance.
+
+CatalogueIndexChecks runs as part of the standalone catalogue checks.
+It verifies lookups, case-sensitive matching, group membership, missing
+IDs, and independence from source and returned-record changes.
+
+## Season and event eligibility
+
+EligibilityPoolBuilder combines the catalogue with the season and event
+selected for one supplied instant.
+
+The result contains all eligible collection IDs and a separate subset
+matching the active event. Event entries also belong to the general pool
+so they can later participate in ordinary type categories.
+
+Both normal and shiny identities are retained. Ownership, completed
+categories, random rolls, and catches are handled separately.
+
+Regular non-event-only entries require an unlocked introduction
+generation. Matching event entries may bypass this requirement when
+allowed by the event configuration, subject to its Legendary and
+Mythical restrictions.
+
+Costumes require an explicit costume selector. Broad type and evolution
+family selectors do not grant costume access.
+
+Evolution-family selectors resolve a species slug to its evolution-chain
+ID. Matching uses the entries represented in the catalogue; this does
+not prove that an imported family is complete.
+
+Active event selectors referencing absent species, forms, or costumes
+are rejected. Only the active event's catalogue references are resolved
+during pool construction.
+
+EligibilityChecks runs through the standalone catalogue test program.
+It uses fixed schedules and checks generation restrictions, event
+additions, family selection, costume selection, event boundaries,
+disabled events, and the requirement for an active season.
+
+Pool construction is not automatic caching. Runtime integration must
+rebuild availability when the active season, event, or configuration
+changes.

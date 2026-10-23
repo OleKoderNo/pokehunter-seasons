@@ -221,6 +221,10 @@ namespace PokeHunter.Tests.Catalogue
 
                 RunMissingMediaCheck(original, temporaryDirectory);
 
+                // Test reusable lookups without removing any existing loader checks.
+                CatalogueIndexChecks.Run(catalogue);
+                EligibilityChecks.Run(catalogue);
+
                 Console.WriteLine("All catalogue checks passed.");
                 return 0;
             }
