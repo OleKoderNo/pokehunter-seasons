@@ -642,7 +642,18 @@ The function returns independent copies without modifying its inputs.
 The merge function does not validate external JSON, create missing
 counterparts, or decide season and event eligibility.
 
-Integration with generated catalogue files remains pending.
+The `merge:catalogue` command now validates and combines the four
+generated entry catalogues into `data/catalogue/merged-entries.json`.
+
+Each entry is checked for required and unexpected fields, supported
+values, internal identity relationships, and media-reference structure.
+
+Normal and shiny counterparts must exist and agree on all metadata
+except their entry ID, shiny flag, and sprite references.
+
+This validation does not verify every Pokémon fact, resolve all final
+runtime record references, assign rarity, or enforce event eligibility.
+The combined file remains an intermediate catalogue.
 
 ## Updating the catalogue
 

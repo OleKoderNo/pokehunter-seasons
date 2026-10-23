@@ -134,6 +134,7 @@ executing its script. If compilation fails, that script does not run.
 | `npm run format:check`                        | Check formatting without changing files                                       |
 | `npm run check`                               | Run type checking, linting, standalone converter tests, and formatting checks |
 | `npm run test:tools`                          | Compile and run the standalone converter tests without API or cache access    |
+| `npm run merge:catalogue`                     | Validate and merge the four generated entry catalogues                        |
 
 The current event workflow targets `halloween-2026`.
 Some scripts still contain Halloween-specific paths and reviewed
@@ -191,15 +192,16 @@ Its presence does not prove the latest import succeeded.
 
 ## Generated outputs
 
-| Path                                              | Contents                                              |
-| ------------------------------------------------- | ----------------------------------------------------- |
-| `data/samples/pikachu.json`                       | Four regular Pikachu collection entries               |
-| `data/samples/regular-species.json`               | Representative regular-species sample entries         |
-| `data/catalogue/generation-1.json`                | Regular Generation 1 entries                          |
-| `data/catalogue/halloween-2026-families.json`     | Selected evolution families and their regular entries |
-| `data/catalogue/halloween-2026-type-review.json`  | Candidates discovered through type selectors          |
-| `data/catalogue/halloween-2026-form-details.json` | Detailed form inspection results                      |
-| `data/catalogue/halloween-2026-ghosts.json`       | Reviewed Ghost-type collection entries                |
+| Path                                              | Contents                                                |
+| ------------------------------------------------- | ------------------------------------------------------- |
+| `data/samples/pikachu.json`                       | Four regular Pikachu collection entries                 |
+| `data/samples/regular-species.json`               | Representative regular-species sample entries           |
+| `data/catalogue/generation-1.json`                | Regular Generation 1 entries                            |
+| `data/catalogue/halloween-2026-families.json`     | Selected evolution families and their regular entries   |
+| `data/catalogue/halloween-2026-type-review.json`  | Candidates discovered through type selectors            |
+| `data/catalogue/halloween-2026-form-details.json` | Detailed form inspection results                        |
+| `data/catalogue/halloween-2026-ghosts.json`       | Reviewed Ghost-type collection entries                  |
+| `data/catalogue/merged-entries.json`              | Validated, deduplicated intermediate collection entries |
 
 The catalogue files are intermediate build products.
 Their wrappers and review fields are not the final runtime catalogue
@@ -215,6 +217,38 @@ Generated files under `data/catalogue/` and downloaded responses under
 Do not force-add these ignored directories.
 A future release workflow must package the validated runtime catalogue
 or provide documented generation steps.
+
+## Merge generated entry catalogues
+
+After generating the four input catalogues, run:
+
+```powershell
+npm run merge:catalogue
+```
+
+The command reads:
+
+- `data/catalogue/generation-1.json`
+- `data/catalogue/halloween-2026-families.json`
+- `data/catalogue/halloween-2026-ghosts.json`
+- `data/catalogue/halloween-2026-variants.json`
+
+It validates saved entry fields, merges identical overlaps, and checks
+that normal and shiny counterparts exist and share consistent metadata.
+
+Conflicting copies of the same entry cause an error identifying both
+sources. Do not bypass this check or manually edit generated output.
+
+The result is saved to `data/catalogue/merged-entries.json`.
+
+All validation completes before output replacement. A failed validation
+leaves any existing merged output unchanged; that older file must not be
+mistaken for the result of the failed command.
+
+The command uses local files and does not download API resources.
+
+This is an intermediate entry catalogue. It does not yet contain the
+complete runtime species, family, encounter-group, and rarity records.
 
 ## Downloaded resources and caching
 
@@ -356,6 +390,7 @@ Node's built-in test runner:
 - `dist/tests/catalogue.test.js`
 - `dist/tests/event-variants.test.js`
 - `dist/tests/merge-collection-entries.test.js`
+- `dist/tests/validate-collection-entry.test.js`
 
 Test source is stored in `scripts/tests/catalogue.test.ts`.
 Fresh synthetic fixtures come from
@@ -366,9 +401,12 @@ deduplicated, conflicting copies are rejected, duplicate IDs within one
 source are rejected, output ordering is stable, and input entries are
 not mutated.
 
-The merge function accepts validated entries. JSON file validation and
-the command that combines generated catalogue files are not implemented
-yet.
+Saved-entry validation and normal/shiny counterpart checks have
+standalone tests. The merge command integrates these checks with local
+JSON loading and temporary-file output replacement.
+
+Automated tests do not yet exercise the merge command's filesystem
+failure paths. Run `npm run merge:catalogue` to check the generated inputs.
 
 Coverage includes:
 
