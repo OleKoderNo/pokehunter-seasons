@@ -4,6 +4,7 @@ import { getPokeApiResource } from "./lib/pokeapi.js";
 import { createPikachuEntries } from "./lib/create-pikachu-entries.js";
 import { createRegularEntries } from "./lib/create-regular-entries.js";
 import type { CollectionEntry } from "./types/catalogue.js";
+import { readEvolutionChainId } from "./lib/read-evolution-chain-id.js";
 
 const SAMPLE_DIRECTORY = new URL("../data/samples/", import.meta.url);
 const SAMPLE_FILE = new URL("regular-species.json", SAMPLE_DIRECTORY);
@@ -48,14 +49,73 @@ const CASES = [
 ] as const;
 
 /**
+ * Checks reference parsing independently of downloaded API data.
+ *
+ * Invalid references must produce an error rather than quietly assigning
+ * a species to an incorrect evolution family.
+ */
+function checkEvolutionChainReferences(): void {
+  assert.equal(
+    readEvolutionChainId({
+      evolution_chain: {
+        url: "https://pokeapi.co/api/v2/evolution-chain/10/",
+      },
+    }),
+    10,
+  );
+
+  assert.equal(
+    readEvolutionChainId({
+      evolution_chain: {
+        url: "https://pokeapi.co/api/v2/evolution-chain/10",
+      },
+    }),
+    10,
+  );
+
+  assert.throws(() => readEvolutionChainId({}), /evolution-chain/);
+
+  assert.throws(
+    () => readEvolutionChainId({ evolution_chain: null }),
+    /evolution-chain/,
+  );
+
+  const invalidUrls = [
+    "not-a-url",
+    "https://example.com/api/v2/evolution-chain/10/",
+    "https://pokeapi.co/api/v2/pokemon/10/",
+    "https://pokeapi.co/api/v2/evolution-chain/0/",
+    "https://pokeapi.co/api/v2/evolution-chain/-1/",
+    "https://pokeapi.co/api/v2/evolution-chain/1.5/",
+    "https://pokeapi.co/api/v2/evolution-chain/9007199254740992/",
+    "https://pokeapi.co/api/v2/evolution-chain/10/?unexpected=true",
+    "https://pokeapi.co/api/v2/evolution-chain/10/#unexpected",
+  ];
+
+  for (const url of invalidUrls) {
+    assert.throws(
+      () =>
+        readEvolutionChainId({
+          evolution_chain: { url },
+        }),
+      /evolution-chain/,
+      `Expected rejection of evolution-chain reference: ${url}`,
+    );
+  }
+
+  console.log("PASS: Evolution-chain references were validated.");
+}
+
+/**
  * Imports a small reviewed sample before attempting a full catalogue.
  *
  * All assertions run before the output file is written.
  * The original Pikachu sample is not overwritten.
  */
 async function main(): Promise<void> {
-  const entries: CollectionEntry[] = [];
+  checkEvolutionChainReferences();
 
+  const entries: CollectionEntry[] = [];
   // Sequential requests keep this small importer easy to inspect
   // and avoid sending a burst of requests to the API.
   for (const example of CASES) {
@@ -89,6 +149,11 @@ async function main(): Promise<void> {
     }
 
     if (example.slug === "pikachu") {
+      // The supplied Pikachu species data identifies evolution chain 10.
+      assert.ok(
+        converted.every((entry) => entry.evolutionChainId === 10),
+        "Pikachu entries must reference evolution chain 10.",
+      );
       assert.deepStrictEqual(
         converted,
         createPikachuEntries(pokemon, species),

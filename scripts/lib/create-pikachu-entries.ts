@@ -1,6 +1,7 @@
 import { isJsonObject } from "./pokeapi.js";
 import type { JsonObject } from "./pokeapi.js";
 import type { CollectionEntry } from "../types/catalogue.js";
+import { readEvolutionChainId } from "./read-evolution-chain-id.js";
 
 /**
  * Reads an optional media reference.
@@ -89,6 +90,7 @@ export function createPikachuEntries(
   }
 
   const nationalDexNumber = nationalRecord.entry_number;
+  const evolutionChainId = readEvolutionChainId(species);
 
   // Missing classification data must fail the import.
   // Defaulting to false could incorrectly bypass event restrictions
@@ -155,6 +157,7 @@ export function createPikachuEntries(
     id: `pikachu:${gender}:${isShiny ? "shiny" : "normal"}`,
     speciesId: "pikachu",
     nationalDexNumber,
+    evolutionChainId,
     isLegendary,
     isMythical,
     encounterGroupId: "pikachu",

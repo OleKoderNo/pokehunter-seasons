@@ -1,6 +1,7 @@
 import { isJsonObject } from "./pokeapi.js";
 import type { JsonObject } from "./pokeapi.js";
 import type { CollectionEntry, CollectionGender } from "../types/catalogue.js";
+import { readEvolutionChainId } from "./read-evolution-chain-id.js";
 
 const GENERATIONS: Readonly<Record<string, number>> = {
   "generation-i": 1,
@@ -263,6 +264,7 @@ export function createRegularEntries(
   }
 
   const nationalDexNumber = readNationalDexNumber(species);
+  const evolutionChainId = readEvolutionChainId(species);
   const displayName = readDisplayName(species);
   const types = readTypes(pokemon);
   const genders = readCollectionGenders(species);
@@ -294,6 +296,7 @@ export function createRegularEntries(
         id: `${speciesId}:${gender}:${isShiny ? "shiny" : "normal"}`,
         speciesId,
         nationalDexNumber,
+        evolutionChainId,
         isLegendary: species.is_legendary,
         isMythical: species.is_mythical,
         encounterGroupId: speciesId,

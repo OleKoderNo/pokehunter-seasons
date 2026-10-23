@@ -51,6 +51,14 @@ export interface CollectionEntry {
   /** National Pokédex number shared by the species' forms. */
   nationalDexNumber: number;
 
+  /**
+   * PokéAPI evolution-chain identifier shared by the species' family.
+   *
+   * Used to resolve evolution-family event selectors.
+   * This does not grant eligibility or override generation restrictions.
+   */
+  evolutionChainId: number;
+
   /** Whether the species is classified as Legendary. */
   isLegendary: boolean;
 
