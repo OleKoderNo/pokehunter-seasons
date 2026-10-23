@@ -1128,3 +1128,75 @@ The inheritance should be inside the `EXTERNAL_EDITOR` branch.
 
 If the command-line build succeeds but VS Code still shows stale errors,
 run **Developer: Reload Window** from the Command Palette.
+
+## Standalone catalogue checks
+
+The catalogue models, loader, and validator are located in
+`streamerbot/configuration/catalogue/` and compile into PokeHunter.Core.
+
+The standalone test project is located in `tests/catalogue/`.
+
+It loads the generated intermediate catalogue and checks that invalid
+copies are rejected for the expected reasons.
+
+### Build and run
+
+Generate the merged catalogue with `npm run merge:catalogue` if it is
+not already available.
+
+From the repository root, build:
+
+```powershell
+dotnet build tests/catalogue/CatalogueChecks.csproj
+```
+
+Only after the build succeeds, run:
+
+```powershell
+& ".\tests\catalogue\bin\Debug\net481\win-x64\CatalogueChecks.exe" ".\data\catalogue\merged-entries.json"
+```
+
+The program accepts one argument: the catalogue file path.
+
+It returns exit code 0 when all checks pass and 1 when a check fails.
+
+### Coverage
+
+The checks verify:
+
+- The actual generated catalogue loads and validates.
+- Unsupported schema versions are rejected.
+- Missing required properties and unknown entry properties are rejected.
+- Missing normal/shiny counterparts are rejected.
+- Conflicting counterpart metadata is rejected.
+- Unsupported rarity classes are rejected.
+- Unknown group references are rejected.
+- Duplicate entry and group IDs are rejected.
+- Entries without group membership are rejected.
+- Missing sprite and cry references are accepted without losing entries.
+
+These checks do not cover every validation branch or implement encounter
+selection.
+
+### File safety and dependencies
+
+Failure checks modify temporary copies in the operating system's
+temporary directory. They do not modify the original catalogue or access
+the player database.
+
+The program attempts to remove its temporary directory after execution
+and reports cleanup failures.
+
+The test project references PokeHunter.Core and copies Newtonsoft.Json
+from the configured Streamer.bot installation into its own build output.
+
+Streamer.bot does not need to be running for these checks.
+
+### Current loading behavior
+
+The loader currently accepts the intermediate catalogue format marked
+`sampleOnly: true`. Successful validation does not make it a production
+catalogue or connect it to live redemptions.
+
+Each call to CatalogueLoader.Load reads and validates the file.
+Runtime caching and reusable lookup dictionaries are separate work.
