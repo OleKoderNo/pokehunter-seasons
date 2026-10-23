@@ -29,8 +29,14 @@ They do not yet produce a complete release-ready game catalogue.
 They do not execute catches, write player ownership, or activate events
 inside Streamer.bot.
 
-Hangry Morpeko and the five costume resources have been inspected.
-Their dedicated conversion and integration are still pending.
+Hangry Morpeko and the five selected Pikachu costumes now have a
+dedicated converter and importer.
+
+The converter generates two Hangry Morpeko entries and ten female-only
+costume entries. Each included variant has normal and shiny entries.
+
+These entries are saved separately and have not yet been merged into
+the final runtime catalogue.
 
 The C# configuration and SQLite foundations are implemented separately.
 Catalogue integration with the catching runtime is still pending.
@@ -108,24 +114,26 @@ executing its script. If compilation fails, that script does not run.
 
 ## Available commands
 
-| Command                          | Purpose                                                                       |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `npm run typecheck`              | Check TypeScript without emitting JavaScript                                  |
-| `npm run build:tools`            | Compile the TypeScript tools                                                  |
-| `npm run import:sample`          | Generate the original four-entry Pikachu sample                               |
-| `npm run import:regular-sample`  | Run regular-species sample checks and generate their sample                   |
-| `npm run import:gen1`            | Generate regular Generation 1 entries                                         |
-| `npm run import:event-families`  | Resolve the selected event's families and generate regular entries            |
-| `npm run review:event-types`     | Discover candidates matching the selected event's types                       |
-| `npm run inspect:event-forms`    | Inspect the discovered candidates' form metadata                              |
-| `npm run import:reviewed-ghosts` | Generate entries from the reviewed Halloween Ghost forms                      |
-| `npm run inspect:event-variants` | Print metadata for Hangry Morpeko and the five selected costumes              |
-| `npm run lint`                   | Check configured source files with ESLint                                     |
-| `npm run lint:fix`               | Apply supported ESLint fixes                                                  |
-| `npm run format`                 | Format files covered by Prettier                                              |
-| `npm run format:check`           | Check formatting without changing files                                       |
-| `npm run check`                  | Run type checking, linting, standalone converter tests, and formatting checks |
-| `npm run test:tools`             | Compile and run the standalone converter tests without API or cache access    |
+| Command                                       | Purpose                                                                       |
+| --------------------------------------------- | ----------------------------------------------------------------------------- |
+| `npm run typecheck`                           | Check TypeScript without emitting JavaScript                                  |
+| `npm run build:tools`                         | Compile the TypeScript tools                                                  |
+| `npm run import:sample`                       | Generate the original four-entry Pikachu sample                               |
+| `npm run import:regular-sample`               | Run regular-species sample checks and generate their sample                   |
+| `npm run import:gen1`                         | Generate regular Generation 1 entries                                         |
+| `npm run import:event-families`               | Resolve the selected event's families and generate regular entries            |
+| `npm run review:event-types`                  | Discover candidates matching the selected event's types                       |
+| `npm run inspect:event-forms`                 | Inspect the discovered candidates' form metadata                              |
+| `npm run import:reviewed-ghosts`              | Generate entries from the reviewed Halloween Ghost forms                      |
+| `npm run import:event-variants`               | Generate Hangry Morpeko and the five female-only Pikachu costumes             |
+| `data/catalogue/halloween-2026-variants.json` | Twelve entries for the six reviewed explicit variants                         |
+| `npm run inspect:event-variants`              | Print metadata for Hangry Morpeko and the five selected costumes              |
+| `npm run lint`                                | Check configured source files with ESLint                                     |
+| `npm run lint:fix`                            | Apply supported ESLint fixes                                                  |
+| `npm run format`                              | Format files covered by Prettier                                              |
+| `npm run format:check`                        | Check formatting without changing files                                       |
+| `npm run check`                               | Run type checking, linting, standalone converter tests, and formatting checks |
+| `npm run test:tools`                          | Compile and run the standalone converter tests without API or cache access    |
 
 The current event workflow targets `halloween-2026`.
 Some scripts still contain Halloween-specific paths and reviewed
@@ -343,7 +351,8 @@ npm run test:tools
 ```
 
 The command compiles the TypeScript tools and runs
-`dist/tests/catalogue.test.js` using Node's built-in test runner.
+`dist/tests/catalogue.test.js` and `dist/tests/event-variants.test.js`
+using Node's built-in test runner.
 
 Test source is stored in `scripts/tests/catalogue.test.ts`.
 Fresh synthetic fixtures come from
@@ -369,8 +378,12 @@ Coverage includes:
 The importer checks remain in place to verify conversion against
 downloaded or cached source data.
 
+The event-variant tests additionally cover female-only costume identities,
+shared Pikachu encounter groups, event-only flags, Hangry Morpeko,
+missing media, matching parent artwork, and rejected resource mappings.
+
 These tests do not cover the downloader, final catalogue merging,
-costume conversion, or runtime encounter selection.
+or runtime encounter selection.
 
 ### C# checks
 
@@ -484,8 +497,8 @@ being committed.
 Before the catalogue can support live catches, we still need to:
 
 - Add standalone converter tests.
-- Convert and validate the explicit event forms and costumes.
-- Resolve outstanding form and encounter-group mappings.
+- Merge and validate the generated explicit event variants alongside
+  Generation 1, event-family, and reviewed Ghost entries.- Resolve outstanding form and encounter-group mappings.
 - Merge overlapping generated entries without conflicting identities.
 - Review rarity assignments.
 - Build and validate the final runtime catalogue.

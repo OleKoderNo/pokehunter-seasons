@@ -22,8 +22,9 @@ The TypeScript tools generate:
 
 Type discovery and form inspection also produce review reports.
 
-Hangry Morpeko and the five selected Pikachu costumes have been inspected.
-Their dedicated conversion is not implemented yet.
+Hangry Morpeko and the five female-only Pikachu costumes are generated
+through a dedicated reviewed converter. Their output remains separate
+from the other intermediate catalogues.
 
 The generated files are currently separate intermediate outputs under
 `data/samples/` and `data/catalogue/`.
@@ -214,9 +215,17 @@ supports the same genders.
 The current `hasGenderDifference` value is copied from species metadata.
 It must not be treated as a complete form-specific gender policy.
 
-The costume converter needs an explicit reviewed policy.
-Whether the selected costumes will have one indexed gender or both
-genders sharing available artwork remains unresolved.
+Single-gender forms and costumes receive only their supported gender.
+
+The five reviewed Pikachu costumes are female-only. Each receives one
+female normal entry and one female shiny entry.
+
+Their converter sets `hasGenderDifference` to false because these
+individual costume forms do not have male and female counterparts.
+This differs from the species-wide Pikachu flag.
+
+Missing female sprite fields do not determine gender availability.
+The reviewed costume mapping supplies that rule explicitly.
 
 Do not infer supported genders solely from missing female sprite fields.
 
@@ -373,8 +382,23 @@ Each selected gender will receive normal and shiny entries.
 Unlocking Generation 6 will not make these costumes available outside
 matching events.
 
-Costume gender policy and conversion remain pending.
-The inspection report alone does not generate these entries.
+The dedicated converter generates ten entries across these five costumes:
+one female normal entry and one female shiny entry per costume.
+
+All five share the `pikachu` encounter group and remain event-only.
+Their female artwork is read from the costume resource's default sprite
+fields.
+
+There is no male counterpart to redirect a costume catch toward.
+For the selected normal or shiny state, a costume is complete after its
+single female entry has been caught. Runtime ownership filtering remains
+to be implemented.
+
+Hangry Morpeko is generated separately as a non-costume Generation 8 form,
+with unspecified normal and shiny entries in the `morpeko-hangry` group.
+
+Its `eventOnly` flag is false. This does not make it available in Season 1
+without an eligible event; generation restrictions still apply.
 
 ## Event membership and generation eligibility
 
