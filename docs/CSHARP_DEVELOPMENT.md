@@ -103,6 +103,18 @@ failures are reported. Standalone projects reference the actual Core library and
 Newtonsoft.Json beside their executables (`Private=true`). No Streamer.bot restart or
 DLL deployment is needed just to run these checks.
 
+Ownership checks verify that completed categories are removed, incomplete
+categories retain possible duplicates, and normal/shiny ownership remains
+separate. Event entries can keep their type and Event categories available.
+
+Variant checks cover equal form weights, regular duplicates, costume
+missing-gender protection, completed-costume removal, single-gender forms,
+and category-specific eligibility. Synthetic costume fixtures are test data,
+not additions to the generated catalogue.
+
+Program also calls EncounterOwnershipChecks and EncounterVariantChecks.
+These components do not yet persist catches or process complete redemptions.
+
 ### Preserve regression coverage
 
 Check classes are explicitly called, not automatically discovered. Call a new group's

@@ -229,6 +229,8 @@ namespace PokeHunter.Tests.Catalogue
                 EncounterGroupSelectionChecks.Run(catalogue);
                 ShinyProbabilityChecks.Run();
                 ShinyRollerChecks.Run();
+                EncounterOwnershipChecks.Run(catalogue);
+                EncounterVariantChecks.Run();
 
                 Console.WriteLine("All catalogue checks passed.");
                 return 0;

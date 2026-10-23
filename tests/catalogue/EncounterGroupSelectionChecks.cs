@@ -141,7 +141,7 @@ namespace PokeHunter.Tests.Catalogue
         /// Builds normal candidates for Generation 1 plus one event costume.
         /// Fixed dates keep the test independent of today's date.
         /// </summary>
-        private static IReadOnlyList<EncounterCategory> CreateCategories(
+        internal static IReadOnlyList<EncounterCategory> CreateCategories(
             CatalogueDocument catalogue
         )
         {

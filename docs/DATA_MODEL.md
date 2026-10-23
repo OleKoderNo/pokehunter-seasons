@@ -146,8 +146,11 @@ live cache automatically.
 
 Category candidates retain eligible entry subsets. An Event category selecting only
 costumes cannot award a regular variant that failed its selectors. An ordinary type
-can include both when independently eligible. Ownership completion and random variant
-selection remain unimplemented.
+can include both when independently eligible. EncounterOwnershipFilter removes completed
+categories using seasonal ownership while retaining all candidates in incomplete categories.
+EncounterVariantSelector selects a form and gender from the chosen group's
+category-specific entries, removing completed costumes and protecting their
+missing genders. Regular entries remain possible duplicates.
 
 ## Merge and validation guarantees
 
