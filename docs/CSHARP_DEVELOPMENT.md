@@ -88,6 +88,13 @@ preservation of category-specific costume entries, and empty pools returning
 no selection without consuming randomness. They use predetermined values,
 not statistical tests of the gameplay random-number generator.
 
+Shiny checks cover combined lifetime unique-entry milestones, additional
+shiny milestones, subscription multipliers, custom settings, invalid inputs,
+and the 100% probability cap. Controlled draws verify the exact shiny success
+boundary and the behavior of zero and one probabilities.
+
+These checks do not yet cover shiny protection across redemption retries.
+
 Eligibility/category checks use fixed test schedules, not every event in config/events.json.
 
 Both programs return 0 on success and 1 on failure. Invalid-input fixtures use temporary
