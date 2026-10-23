@@ -1,0 +1,358 @@
+{
+  "schemaVersion": 1,
+  "sampleOnly": true,
+  "entries": [
+    {
+      "id": "pikachu:male:normal",
+      "speciesId": "pikachu",
+      "nationalDexNumber": 25,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "pikachu",
+      "formId": "pikachu",
+      "displayName": "Pikachu",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "male",
+      "hasGenderDifference": true,
+      "isShiny": false,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/25.ogg"
+      }
+    },
+    {
+      "id": "pikachu:female:normal",
+      "speciesId": "pikachu",
+      "nationalDexNumber": 25,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "pikachu",
+      "formId": "pikachu",
+      "displayName": "Pikachu",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "female",
+      "hasGenderDifference": true,
+      "isShiny": false,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/female/25.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/25.ogg"
+      }
+    },
+    {
+      "id": "pikachu:male:shiny",
+      "speciesId": "pikachu",
+      "nationalDexNumber": 25,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "pikachu",
+      "formId": "pikachu",
+      "displayName": "Pikachu",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "male",
+      "hasGenderDifference": true,
+      "isShiny": true,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/25.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/25.ogg"
+      }
+    },
+    {
+      "id": "pikachu:female:shiny",
+      "speciesId": "pikachu",
+      "nationalDexNumber": 25,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "pikachu",
+      "formId": "pikachu",
+      "displayName": "Pikachu",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "female",
+      "hasGenderDifference": true,
+      "isShiny": true,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/female/25.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/25.ogg"
+      }
+    },
+    {
+      "id": "bulbasaur:unspecified:normal",
+      "speciesId": "bulbasaur",
+      "nationalDexNumber": 1,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "bulbasaur",
+      "formId": "bulbasaur",
+      "displayName": "Bulbasaur",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "unspecified",
+      "hasGenderDifference": false,
+      "isShiny": false,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/1.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/1.ogg"
+      }
+    },
+    {
+      "id": "bulbasaur:unspecified:shiny",
+      "speciesId": "bulbasaur",
+      "nationalDexNumber": 1,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "bulbasaur",
+      "formId": "bulbasaur",
+      "displayName": "Bulbasaur",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "unspecified",
+      "hasGenderDifference": false,
+      "isShiny": true,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/1.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/1.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/1.ogg"
+      }
+    },
+    {
+      "id": "magnemite:genderless:normal",
+      "speciesId": "magnemite",
+      "nationalDexNumber": 81,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "magnemite",
+      "formId": "magnemite",
+      "displayName": "Magnemite",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "genderless",
+      "hasGenderDifference": false,
+      "isShiny": false,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric",
+        "steel"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/81.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/81.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/81.ogg"
+      }
+    },
+    {
+      "id": "magnemite:genderless:shiny",
+      "speciesId": "magnemite",
+      "nationalDexNumber": 81,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "magnemite",
+      "formId": "magnemite",
+      "displayName": "Magnemite",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "genderless",
+      "hasGenderDifference": false,
+      "isShiny": true,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "electric",
+        "steel"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/81.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/81.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/81.ogg"
+      }
+    },
+    {
+      "id": "nidoran-f:female:normal",
+      "speciesId": "nidoran-f",
+      "nationalDexNumber": 29,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "nidoran-f",
+      "formId": "nidoran-f",
+      "displayName": "Nidoran♀",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "female",
+      "hasGenderDifference": false,
+      "isShiny": false,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "poison"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/29.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/29.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/29.ogg"
+      }
+    },
+    {
+      "id": "nidoran-f:female:shiny",
+      "speciesId": "nidoran-f",
+      "nationalDexNumber": 29,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "nidoran-f",
+      "formId": "nidoran-f",
+      "displayName": "Nidoran♀",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "female",
+      "hasGenderDifference": false,
+      "isShiny": true,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "poison"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/29.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/29.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/29.ogg"
+      }
+    },
+    {
+      "id": "nidoran-m:male:normal",
+      "speciesId": "nidoran-m",
+      "nationalDexNumber": 32,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "nidoran-m",
+      "formId": "nidoran-m",
+      "displayName": "Nidoran♂",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "male",
+      "hasGenderDifference": false,
+      "isShiny": false,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "poison"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/32.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/32.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/32.ogg"
+      }
+    },
+    {
+      "id": "nidoran-m:male:shiny",
+      "speciesId": "nidoran-m",
+      "nationalDexNumber": 32,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "nidoran-m",
+      "formId": "nidoran-m",
+      "displayName": "Nidoran♂",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "male",
+      "hasGenderDifference": false,
+      "isShiny": true,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "poison"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/32.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/32.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/32.ogg"
+      }
+    }
+  ]
+}
