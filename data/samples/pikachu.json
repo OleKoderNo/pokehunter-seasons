@@ -5,6 +5,9 @@
     {
       "id": "pikachu:male:normal",
       "speciesId": "pikachu",
+      "nationalDexNumber": 25,
+      "isLegendary": false,
+      "isMythical": false,
       "encounterGroupId": "pikachu",
       "formId": "pikachu",
       "displayName": "Pikachu",
@@ -31,6 +34,9 @@
     {
       "id": "pikachu:female:normal",
       "speciesId": "pikachu",
+      "nationalDexNumber": 25,
+      "isLegendary": false,
+      "isMythical": false,
       "encounterGroupId": "pikachu",
       "formId": "pikachu",
       "displayName": "Pikachu",
@@ -57,6 +63,9 @@
     {
       "id": "pikachu:male:shiny",
       "speciesId": "pikachu",
+      "nationalDexNumber": 25,
+      "isLegendary": false,
+      "isMythical": false,
       "encounterGroupId": "pikachu",
       "formId": "pikachu",
       "displayName": "Pikachu",
@@ -83,6 +92,9 @@
     {
       "id": "pikachu:female:shiny",
       "speciesId": "pikachu",
+      "nationalDexNumber": 25,
+      "isLegendary": false,
+      "isMythical": false,
       "encounterGroupId": "pikachu",
       "formId": "pikachu",
       "displayName": "Pikachu",

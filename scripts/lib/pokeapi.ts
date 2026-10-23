@@ -2,10 +2,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const API_BASE_URL = "https://pokeapi.co/api/v2/";
 
-// Both scripts/lib and the compiled scripts/dist are two levels deep from the project root, so we can use ../../ to get to the project root.
+// Source: scripts/lib/pokeapi.ts
+// Compiled: dist/lib/pokeapi.js
+// Both locations are two directories below the repository root.
 const CACHE_DIRECTORY = new URL("../../cache/", import.meta.url);
 
-const REQUEST_TIMEOUT_MS = 15_000; // 15 seconds
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export type JsonObject = Record<string, unknown>;
 
@@ -22,8 +24,9 @@ export function isJsonObject(value: unknown): value is JsonObject {
  * Checks the identity of a named API resource.
  *
  * This is not complete validation of every endpoint field.
+ * Converters validate the additional fields they consume.
  */
-function validateResorce(
+function validateResource(
   data: unknown,
   resourceName: string,
 ): asserts data is JsonObject {
@@ -38,12 +41,21 @@ function validateResorce(
   }
 }
 
+/**
+ * Loads a named PokéAPI resource from the local cache or the API.
+ *
+ * Only a missing cache file triggers a download. Invalid cached data
+ * is reported so it can be inspected rather than silently replaced.
+ *
+ * This helper expects a named resource with an ID and name.
+ * It does not handle list endpoints or unnamed resources.
+ */
 export async function getPokeApiResource(
   resourceType: string,
   resourceName: string,
-  // Restrict the argument to the endpoint name and resource slug.
-  // This also prevents path from escaping the cache directory.
 ): Promise<JsonObject> {
+  // Restrict both arguments to lowercase endpoint names and slugs.
+  // This also prevents paths from escaping the cache directory.
   const validSlug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
   if (!validSlug.test(resourceType) || !validSlug.test(resourceName)) {
@@ -51,6 +63,7 @@ export async function getPokeApiResource(
   }
 
   const resourcePath = `${resourceType}/${resourceName}`;
+
   const cacheFile = new URL(
     `${resourceType}--${resourceName}.json`,
     CACHE_DIRECTORY,
@@ -61,7 +74,8 @@ export async function getPokeApiResource(
   try {
     cachedText = await readFile(cacheFile, "utf-8");
   } catch (error: unknown) {
-    // Only a missing file should trigger a download.
+    // Permission errors and other filesystem failures must not be
+    // mistaken for a missing cache file.
     const isMissingFile = isJsonObject(error) && error.code === "ENOENT";
 
     if (!isMissingFile) {
@@ -74,7 +88,8 @@ export async function getPokeApiResource(
   if (cachedText !== undefined) {
     try {
       const cachedData: unknown = JSON.parse(cachedText);
-      validateResorce(cachedData, resourceName);
+
+      validateResource(cachedData, resourceName);
 
       console.log(`[cache] ${resourcePath}`);
       return cachedData;
@@ -86,10 +101,13 @@ export async function getPokeApiResource(
       );
     }
   }
+
   console.log(`[download] ${resourcePath}`);
 
   const url = new URL(`${resourcePath}/`, API_BASE_URL);
+
   console.log(`[request] ${url.href}`);
+
   const response = await fetch(url, {
     headers: {
       Accept: "application/json",
@@ -105,9 +123,12 @@ export async function getPokeApiResource(
   }
 
   const data: unknown = await response.json();
-  validateResorce(data, resourceName);
+
+  // Validate the resource identity before saving it to the cache.
+  validateResource(data, resourceName);
 
   await mkdir(CACHE_DIRECTORY, { recursive: true });
+
   await writeFile(cacheFile, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 
   return data;

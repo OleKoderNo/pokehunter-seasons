@@ -62,6 +62,47 @@ export function createPikachuEntries(
     );
   }
 
+  // Read the explicitly named National Pokédex record.
+  // A Pokémon resource ID can identify a form, so it must not be
+  // assumed to be that Pokémon's National Pokédex number.
+  if (!Array.isArray(species.pokedex_numbers)) {
+    throw new Error("Pikachu has no valid Pokédex records.");
+  }
+
+  const nationalRecords = species.pokedex_numbers.filter(
+    (record: unknown) =>
+      isJsonObject(record) &&
+      isJsonObject(record.pokedex) &&
+      record.pokedex.name === "national",
+  );
+
+  const nationalRecord: unknown = nationalRecords[0];
+
+  if (
+    nationalRecords.length !== 1 ||
+    !isJsonObject(nationalRecord) ||
+    typeof nationalRecord.entry_number !== "number" ||
+    !Number.isInteger(nationalRecord.entry_number) ||
+    nationalRecord.entry_number !== 25
+  ) {
+    throw new Error("Expected Pikachu's National Pokédex number to be 25.");
+  }
+
+  const nationalDexNumber = nationalRecord.entry_number;
+
+  // Missing classification data must fail the import.
+  // Defaulting to false could incorrectly bypass event restrictions
+  // when this converter is expanded to support other species.
+  if (
+    typeof species.is_legendary !== "boolean" ||
+    typeof species.is_mythical !== "boolean"
+  ) {
+    throw new Error("Pikachu has invalid Legendary or Mythical flags.");
+  }
+
+  const isLegendary = species.is_legendary;
+  const isMythical = species.is_mythical;
+
   if (!Array.isArray(pokemon.types) || pokemon.types.length === 0) {
     throw new Error("Pikachu has no valid type records.");
   }
@@ -110,8 +151,12 @@ export function createPikachuEntries(
   ] as const;
 
   return variants.map(({ gender, isShiny, spriteField }): CollectionEntry => ({
+    // Preserve the IDs already used by the original sample.
     id: `pikachu:${gender}:${isShiny ? "shiny" : "normal"}`,
     speciesId: "pikachu",
+    nationalDexNumber,
+    isLegendary,
+    isMythical,
     encounterGroupId: "pikachu",
     formId: "pikachu",
     displayName: "Pikachu",
