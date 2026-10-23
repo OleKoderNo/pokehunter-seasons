@@ -13,6 +13,6 @@
     "noEmitOnError": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["scripts/**/*.ts", "import-pokemon.ts"],
+  "include": ["scripts/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

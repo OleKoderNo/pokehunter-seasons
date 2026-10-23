@@ -18,11 +18,12 @@
     "inspect:event-forms": "npm run build:tools && node dist/inspect-event-forms.js",
     "import:reviewed-ghosts": "npm run build:tools && node dist/import-reviewed-ghosts.js",
     "inspect:event-variants": "npm run build:tools && node dist/inspect-event-variants.js",
+    "test:tools": "npm run build:tools && node --test dist/tests/catalogue.test.js",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "check": "npm run typecheck && npm run lint && npm run format:check"
+    "check": "npm run typecheck && npm run lint && npm run test:tools && npm run format:check"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

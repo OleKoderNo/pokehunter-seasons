@@ -304,21 +304,28 @@ ninetales
 ninetales-alola
 ```
 
-### Current implementation difference
+### Current converter grouping
 
-The current reviewed form converter assigns `encounterGroupId` from
-the species ID.
+The reviewed non-costume form converter assigns `encounterGroupId`
+from the canonical `formId`.
 
-That means its generated non-costume forms currently share their
-species group, even where the intended design calls for separate groups.
+Distinct forms therefore receive separate groups.
+Explicitly mapped gender counterparts share a canonical form ID and
+continue to share one encounter group.
 
-This mapping must be resolved before generating final encounter-group
-records or implementing weighted encounters.
+For example:
 
-Do not treat the intermediate `encounterGroupId` values as evidence
-that runtime grouping is complete.
+- Alolan Marowak uses `marowak-alola`.
+- Male and female Basculegion both use `basculegion`.
 
-Rarity assignments are also not implemented yet.
+Standalone tests protect these mappings.
+
+The converter produces group references, not complete encounter-group
+records. Rarity assignments and runtime weighted selection remain
+unimplemented.
+
+Costumes require separate conversion that assigns them to their
+underlying Pokémon group.
 
 ### Costume selection
 
@@ -527,6 +534,10 @@ The current tools check parts of the model, including:
 - Expected Generation 1 coverage.
 - Reviewed Ghost form metadata.
 - Consistency between overlapping generated entries.
+
+Standalone fixture tests also cover collection gender rules, missing
+media, invalid source fields, regional-form grouping, canonical gender
+mappings, and sprite fallback. These tests run without API or cache access.
 
 These checks do not yet constitute final runtime catalogue validation.
 

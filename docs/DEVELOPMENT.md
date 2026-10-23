@@ -108,23 +108,24 @@ executing its script. If compilation fails, that script does not run.
 
 ## Available commands
 
-| Command                          | Purpose                                                            |
-| -------------------------------- | ------------------------------------------------------------------ |
-| `npm run typecheck`              | Check TypeScript without emitting JavaScript                       |
-| `npm run build:tools`            | Compile the TypeScript tools                                       |
-| `npm run import:sample`          | Generate the original four-entry Pikachu sample                    |
-| `npm run import:regular-sample`  | Run regular-species sample checks and generate their sample        |
-| `npm run import:gen1`            | Generate regular Generation 1 entries                              |
-| `npm run import:event-families`  | Resolve the selected event's families and generate regular entries |
-| `npm run review:event-types`     | Discover candidates matching the selected event's types            |
-| `npm run inspect:event-forms`    | Inspect the discovered candidates' form metadata                   |
-| `npm run import:reviewed-ghosts` | Generate entries from the reviewed Halloween Ghost forms           |
-| `npm run inspect:event-variants` | Print metadata for Hangry Morpeko and the five selected costumes   |
-| `npm run lint`                   | Check configured source files with ESLint                          |
-| `npm run lint:fix`               | Apply supported ESLint fixes                                       |
-| `npm run format`                 | Format files covered by Prettier                                   |
-| `npm run format:check`           | Check formatting without changing files                            |
-| `npm run check`                  | Run type checking, linting, and formatting checks                  |
+| Command                          | Purpose                                                                       |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| `npm run typecheck`              | Check TypeScript without emitting JavaScript                                  |
+| `npm run build:tools`            | Compile the TypeScript tools                                                  |
+| `npm run import:sample`          | Generate the original four-entry Pikachu sample                               |
+| `npm run import:regular-sample`  | Run regular-species sample checks and generate their sample                   |
+| `npm run import:gen1`            | Generate regular Generation 1 entries                                         |
+| `npm run import:event-families`  | Resolve the selected event's families and generate regular entries            |
+| `npm run review:event-types`     | Discover candidates matching the selected event's types                       |
+| `npm run inspect:event-forms`    | Inspect the discovered candidates' form metadata                              |
+| `npm run import:reviewed-ghosts` | Generate entries from the reviewed Halloween Ghost forms                      |
+| `npm run inspect:event-variants` | Print metadata for Hangry Morpeko and the five selected costumes              |
+| `npm run lint`                   | Check configured source files with ESLint                                     |
+| `npm run lint:fix`               | Apply supported ESLint fixes                                                  |
+| `npm run format`                 | Format files covered by Prettier                                              |
+| `npm run format:check`           | Check formatting without changing files                                       |
+| `npm run check`                  | Run type checking, linting, standalone converter tests, and formatting checks |
+| `npm run test:tools`             | Compile and run the standalone converter tests without API or cache access    |
 
 The current event workflow targets `halloween-2026`.
 Some scripts still contain Halloween-specific paths and reviewed
@@ -280,7 +281,7 @@ Testing applies to both TypeScript and C#.
 
 Different checks provide different kinds of evidence.
 
-### Static and formatting checks
+### Combined development checks
 
 Run:
 
@@ -288,17 +289,27 @@ Run:
 npm run check
 ```
 
-This runs:
+This runs the following checks in order:
 
 1. TypeScript type checking.
 2. ESLint.
-3. Prettier's formatting check.
+3. Compilation and standalone converter tests.
+4. Prettier's formatting check.
 
-It does not execute importer behaviour checks, download Pokémon data,
-or validate generated catalogues.
+The command stops when a step fails.
+
+It runs standalone converter tests, but does not run the API-backed
+importers or validate generated catalogue files.
+
+The test step generates compiled JavaScript in `dist/`.
+It does not modify source files, download Pokémon data, or write
+collection catalogues.
 
 A successful type check does not establish that external JSON is valid.
 Runtime readers must still validate the fields they use.
+
+Run the relevant importer behaviour checks separately when changing
+conversion or catalogue-generation logic.
 
 ### Existing importer behaviour checks
 
@@ -323,25 +334,43 @@ Inspection scripts primarily report metadata.
 A successful inspection is not proof that conversion or encounter rules
 are correct.
 
-### Planned standalone TypeScript tests
+### Standalone TypeScript tests
 
-A separate offline fixture-based test suite has not yet been added.
+Run:
 
-The next testing milestone will use small, fixed source examples to
-check converter behaviour without depending on PokéAPI or the cache.
+```powershell
+npm run test:tools
+```
 
-Coverage should include:
+The command compiles the TypeScript tools and runs
+`dist/tests/catalogue.test.js` using Node's built-in test runner.
 
-- Visible gender differences and single-gender species.
-- Genderless and unspecified collection entries.
-- Normal and shiny identity generation.
-- Missing optional media.
-- Malformed required fields.
-- Unsupported form mappings.
-- Special form resources representing gender counterparts.
+Test source is stored in `scripts/tests/catalogue.test.ts`.
+Fresh synthetic fixtures come from
+`scripts/tests/fixtures/catalogue-fixtures.ts`.
 
-Do not document a standalone test command as available until it exists
-and has been verified.
+The tests do not download API resources, read the cache, or write
+catalogues. Fixture media URLs are placeholders and are never requested.
+
+Coverage includes:
+
+- Normal and shiny identities.
+- Visible gender differences.
+- Genderless, single-gender, and unspecified entries.
+- Missing optional media and malformed sprite protocols.
+- Invalid required metadata and duplicate types.
+- Regional-form encounter groups and introduction generations.
+- Form types taking precedence over parent types.
+- Canonical gender mappings for Frillish, Jellicent, and Basculegion.
+- Matching parent sprite fallback.
+- Preventing alternate forms from borrowing default-form artwork.
+- Unsupported form labels, generations, and mismatched resources.
+
+The importer checks remain in place to verify conversion against
+downloaded or cached source data.
+
+These tests do not cover the downloader, final catalogue merging,
+costume conversion, or runtime encounter selection.
 
 ### C# checks
 
@@ -463,6 +492,7 @@ Before the catalogue can support live catches, we still need to:
 - Validate configured event selectors against that catalogue.
 - Integrate catalogue loading and eligibility with C#.
 - Document generation, packaging, and deployment for other creators.
+- Add standalone converter tests.
 
 See [Pokémon Data Model](DATA_MODEL.md) for the current entry contract,
 planned runtime structure, and known differences.

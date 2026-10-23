@@ -23,10 +23,8 @@ const GENERATIONS: Readonly<Record<string, number>> = {
 };
 
 /**
- * Reviewed labels used by the current Ghost-type roster.
- *
- * These are presentation labels. Stable identity comes from formId,
- * gender, and shiny state rather than the displayed wording.
+ * Reviewed presentation labels for the current Ghost-type roster.
+ * Collection identity must not depend on this displayed wording.
  */
 const FORM_LABELS: Readonly<Record<string, string>> = {
   alola: "Alolan",
@@ -64,9 +62,7 @@ const FORM_LABELS: Readonly<Record<string, string>> = {
 
 /**
  * These API forms represent genders of one collection form.
- *
- * Explicit mappings avoid interpreting every "-male" or "-female"
- * suffix as a universal identity rule.
+ * Suffixes alone are not used to infer gender identity.
  */
 const GENDER_FORMS: Readonly<
   Record<string, { speciesId: string; gender: "male" | "female" }>
@@ -90,13 +86,10 @@ const REGIONAL_FORMS: Readonly<Record<string, string>> = {
 };
 
 /**
- * Converts one reviewed API form into normal and shiny collection entries.
+ * Converts a reviewed non-costume form into collection entries.
  *
- * The caller supplies the generation resolved from the form's version
- * group, not the base species' introduction generation.
- *
- * This converter covers the reviewed non-costume forms. Costume handling
- * and runtime encounter eligibility are separate responsibilities.
+ * generationName comes from the form's version group.
+ * Costume conversion and runtime eligibility are separate concerns.
  */
 export function createFormEntries(
   pokemon: JsonObject,
@@ -146,8 +139,7 @@ export function createFormEntries(
       );
     }
 
-    // Example: basculegion:female:shiny.
-    // Avoid basculegion-female:female:shiny and duplicate gender variants.
+    // Gender counterparts share one form and encounter group.
     formId = species.name;
     genders = [genderMapping.gender];
   } else {
@@ -168,8 +160,7 @@ export function createFormEntries(
   const evolutionChainId = readEvolutionChainId(species);
   const displayName = readDisplayName(species);
 
-  // Form types take precedence over the parent Pokémon resource.
-  // This prevents a type-changing form inheriting the wrong categories.
+  // Type-changing forms must use their own types.
   const types = readTypes(form);
 
   const cries = {
@@ -181,32 +172,39 @@ export function createFormEntries(
 
   for (const isShiny of [false, true]) {
     for (const gender of genders) {
-      // A gender-specific form's default sprite already depicts that gender.
-      // Other visible gender differences use the dedicated female fields.
+      const defaultField = isShiny ? "front_shiny" : "front_default";
+      const femaleField = isShiny ? "front_shiny_female" : "front_female";
+
+      // A gender-specific form already depicts that gender in its
+      // default fields. Ordinary visible differences use female fields.
       const useFemaleField =
         genderMapping === undefined &&
         species.has_gender_differences &&
         gender === "female";
 
-      const spriteField = useFemaleField
-        ? isShiny
-          ? "front_shiny_female"
-          : "front_female"
-        : isShiny
-          ? "front_shiny"
-          : "front_default";
+      const spriteField = useFemaleField ? femaleField : defaultField;
 
       let spriteUrl = readAssetUrl(form.sprites, spriteField);
 
-      // Parent artwork is only used for its default form. Falling back
-      // for a cosmetic alternate could display the wrong form.
+      // Alternate forms must not inherit artwork for a different form.
       if (spriteUrl === null && form.is_default) {
-        const parentField =
-          genderMapping?.gender === "female" && species.has_gender_differences
-            ? isShiny
-              ? "front_shiny_female"
-              : "front_female"
-            : spriteField;
+        let parentField = spriteField;
+
+        if (genderMapping !== undefined) {
+          const parentMapping = GENDER_FORMS[pokemon.name];
+
+          const parentRepresentsSelectedGender =
+            parentMapping !== undefined &&
+            parentMapping.speciesId === species.name &&
+            parentMapping.gender === genderMapping.gender;
+
+          // Basculegion-female's parent default sprite is already female.
+          // A shared parent needs its dedicated female field instead.
+          parentField =
+            genderMapping.gender === "female" && !parentRepresentsSelectedGender
+              ? femaleField
+              : defaultField;
+        }
 
         spriteUrl = readAssetUrl(pokemon.sprites, parentField);
       }
@@ -218,8 +216,12 @@ export function createFormEntries(
         evolutionChainId,
         isLegendary: species.is_legendary,
         isMythical: species.is_mythical,
-        encounterGroupId: species.name,
+
+        // Separate non-costume forms receive separate groups.
+        // Reviewed gender counterparts already share a canonical formId.
+        encounterGroupId: formId,
         formId,
+
         displayName,
         formName,
         regionalForm: REGIONAL_FORMS[form.name] ?? null,
