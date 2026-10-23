@@ -1266,3 +1266,33 @@ disabled events, and the requirement for an active season.
 Pool construction is not automatic caching. Runtime integration must
 rebuild availability when the active season, event, or configuration
 changes.
+
+## Encounter category construction
+
+EncounterCategoryBuilder builds populated type categories and an
+optional Event category from an EligibleCataloguePool.
+
+The caller supplies the rolled shiny state, the ordinary type-category
+weight, and the four rarity-class weights. The Event category uses the
+weight stored in the eligibility pool.
+
+Each encounter group appears once within a category. Additional genders,
+costumes, or other collection entries do not multiply its group weight.
+
+A group's candidate entry IDs are specific to that category. Event
+membership does not automatically include every variant in the group.
+
+Dual-type entries appear in both matching type categories. Eligible
+event entries also appear in the Event category.
+
+Empty categories are omitted. Category construction does not inspect
+viewer ownership, remove completed categories, roll randomness, or
+award catches.
+
+EncounterCategoryChecks runs through EligibilityChecks using its fixed
+Halloween fixture. It verifies normal/shiny separation, unique groups,
+category-specific variants, dual typing, weight assignment, complete
+entry coverage, and rejection of an invalid category weight.
+
+The test weights are fixtures. Runtime integration must supply weights
+from the validated game configuration.

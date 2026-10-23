@@ -98,6 +98,9 @@ namespace PokeHunter.Tests.Catalogue
                 "PASS: Event entries also enter the general pool without duplicate IDs."
             );
 
+            // Reuse the fixed active-event fixture to check category construction.
+            EncounterCategoryChecks.Run(catalogue, active);
+
             EligibleCataloguePool ended = EligibilityPoolBuilder.Build(
                 catalogue,
                 seasons,
