@@ -1,189 +1,184 @@
-# Pokémon Data Model
+# Development Guide
 
-This guide owns catalogue identities and structure. For generation commands, see
-[Development](DEVELOPMENT.md); for player records, see [Database](DATABASE.md).
+This guide covers Node/TypeScript tooling and catalogue generation. Use
+[C# Development](CSHARP_DEVELOPMENT.md) for C# builds/tests and
+[Catch Overlay](CATCH_OVERLAY.md) for OBS preview setup.
 
-## Current output
+## Setup
 
-`data/catalogue/merged-entries.json` combines Generation 1, Halloween families,
-reviewed Ghost forms, Hangry Morpeko, and five ORAS costumes. It contains entries
-and encounter groups with resolved rarity. C# loading and relationship checks exist.
+Requirements: Node.js 24+, npm, and internet access for installation/uncached resources.
+Run all commands from the repository root.
 
-The verified roster has 620 entries (310 normal and 310 shiny) in 277 groups.
-Counts are a snapshot, not constants future catalogues must retain.
-
-The document remains an intermediate format:
-
-```json
-{
-  "schemaVersion": 1,
-  "sampleOnly": true,
-  "scope": "merged-collection-entries",
-  "sources": [],
-  "encounterGroups": [],
-  "entries": []
-}
+```powershell
+node --version
+npm --version
+npm ci
 ```
 
-The empty arrays illustrate shape only; the validator requires populated sources,
-groups, and entries. No separate species/family arrays or release-version metadata
-are produced yet. Earlier `data/pokemon.json` sketches were proposals, not an output contract.
+Use the committed lockfile. TypeScript is pinned to 5.9.3; review its compatibility with
+typescript-eslint before upgrading. Commit package.json and package-lock.json together
+when both change. Never commit node_modules.
 
-## Identity levels
+Edit `scripts/**/*.ts` for Node tools and `overlay/src/**/*.ts` for the browser.
+The builds produce `dist/` and `overlay/dist/`; do not edit or commit generated JavaScript.
+Relative TypeScript imports use `.js` extensions because the compiled output runs as
+Node ES modules. Browser TypeScript has a separate config with DOM types and `types: []`.
 
-| Identity | Meaning                                              | Example                |
-| -------- | ---------------------------------------------------- | ---------------------- |
-| Species  | Underlying species                                   | `pikachu`              |
-| Group    | One weighted Pokémon option in a category            | `pikachu`              |
-| Form     | Form/costume shared by gender and shiny counterparts | `pikachu-libre`        |
-| Entry    | One collectible identity                             | `pikachu:female:shiny` |
+## Everyday commands
 
-Entry IDs follow `<formId>:<gender>:<normal-or-shiny>`. They do not depend on display
-names, media URLs, array positions, or the active season/event. Once catches reference
-an ID, do not rename, reuse, or remove it without a migration/compatibility plan.
-The National Pokédex number identifies a species, not a unique collection entry.
+| Command                                   | Purpose                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------- |
+| `npm run check`                           | Node/browser type checks, ESLint, compiled tooling tests, then formatting check |
+| `npm run test:tools`                      | Compile and run offline catalogue-tool tests                                    |
+| `npm run typecheck`                       | Check Node tooling without emitting JavaScript                                  |
+| `npm run typecheck:overlay`               | Check browser TypeScript without emitting                                       |
+| `npm run build:tools`                     | Compile Node tools                                                              |
+| `npm run build:overlay`                   | Compile browser overlay                                                         |
+| `npm run lint` / `npm run lint:fix`       | Report issues / apply supported fixes                                           |
+| `npm run format` / `npm run format:check` | Format supported files / check without edits                                    |
+| `npm run overlay:serve`                   | Build tools and overlay, then run the local preview server                      |
 
-## Collection entry fields
+`npm run check` does not build C#, run API-backed importers, or validate generated
+catalogue files. Its test step emits JavaScript in dist. Prettier does not format C#.
+ESLint covers configured Node tooling, the TypeScript ESLint config, and browser source.
 
-Contracts: `scripts/types/catalogue.ts` and
-`streamerbot/configuration/catalogue/CatalogueDocument.cs`.
+## Generate the current catalogue
 
-| Field                              | Meaning                                                 |
-| ---------------------------------- | ------------------------------------------------------- |
-| `id`                               | Permanent collection identity                           |
-| `speciesId`                        | Underlying species slug                                 |
-| `nationalDexNumber`                | Positive National Pokédex number                        |
-| `evolutionChainId`                 | Positive PokéAPI evolution-chain reference              |
-| `isLegendary`, `isMythical`        | Species classifications                                 |
-| `encounterGroupId`                 | Group used before variant selection                     |
-| `formId`                           | Canonical supported form identity                       |
-| `displayName`                      | Species display name                                    |
-| `formName`                         | Reviewed form label, or null                            |
-| `regionalForm`                     | Regional identifier such as `alola`, or null            |
-| `gender`                           | `male`, `female`, `genderless`, or `unspecified`        |
-| `hasGenderDifference`              | Visible gender difference for the supported form        |
-| `isShiny`                          | Normal/shiny state                                      |
-| `isCostume`                        | Costume classification                                  |
-| `eventOnly`                        | Requires eligible active-event inclusion                |
-| `introducedGeneration`             | Form's introduction generation; currently supported 1–9 |
-| `types`                            | One or two distinct supported type slugs in slot order  |
-| `sprite.url`, `sprite.fallbackUrl` | Matching/reference fallback artwork URL, or null        |
-| `cries.latest`, `cries.legacy`     | Cry URLs, or null                                       |
+Run in this order, stopping if any command fails. Each importer/inspection command
+builds the tools before running its script.
 
-The overlay test combines species name and form label for announcements. Do not assume
-`displayName` already includes the form. Null media properties remain present in JSON.
+```powershell
+npm run import:sample
+npm run import:regular-sample
+npm run import:gen1
+npm run import:event-families
+npm run review:event-types
+npm run inspect:event-forms
+npm run import:reviewed-ghosts
+npm run inspect:event-variants
+npm run import:event-variants
+npm run merge:catalogue
+```
 
-## Gender and shiny mappings
+| Stage                       | What it does                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| Samples                     | Generate Pikachu and representative gender-case examples; compare converters   |
+| Generation 1                | Generate regular entries and verify species coverage                           |
+| Event families              | Resolve all evolution branches and generate regular family members             |
+| Type review                 | Discover candidates matching Halloween's type selectors                        |
+| Form inspection             | Record form metadata for review before conversion                              |
+| Reviewed Ghost import       | Convert reviewed forms; compare overlap against Generation 1                   |
+| Explicit variant inspection | Print metadata for Hangry Morpeko and five costumes; does not generate entries |
+| Explicit variant import     | Generate two Morpeko and ten female-only costume entries                       |
+| Merge                       | Validate, deduplicate, check counterparts, build groups, and apply rarity      |
 
-- Visible gender differences receive separate male/female entries.
-- Single-gender species/forms retain that gender; genderless species use `genderless`.
-- Mixed-gender forms without a supported difference use `unspecified`, not `genderless`.
-- Reviewed Frillish, Jellicent, and Basculegion gender resources share a canonical form
-  ID; avoid encoding the gender twice in form and entry identity.
-- Species metadata is not sufficient for every costume. The five ORAS costumes are
-  female-only and set `hasGenderDifference: false` for those particular forms.
-- Missing female sprite fields do not decide whether a female identity exists.
+The reviewed Ghost import depends on the form-details report and Generation 1 output.
+The workflow currently targets `halloween-2026`; changing an event ID alone does not
+make its scripts support another event. New ambiguous form mappings require review.
 
-Every included form/gender has both normal and shiny entries, even when officially
-shiny-locked. Counterparts agree on all metadata except `id`, `isShiny`, and `sprite`.
-Missing shiny artwork does not remove the shiny entry or justify presenting normal
-artwork as an accurate shiny image.
+An old output can remain after a failed command. Its existence is not evidence that
+the latest run succeeded. Regenerate affected downstream outputs after source changes.
 
-## Encounter groups and rarity
+## Output reference
 
-A generated group contains:
+| Path                                              | Contents                                    |
+| ------------------------------------------------- | ------------------------------------------- |
+| `data/samples/pikachu.json`                       | Four regular Pikachu entries                |
+| `data/samples/regular-species.json`               | Representative regular species              |
+| `data/catalogue/generation-1.json`                | Regular Generation 1 entries                |
+| `data/catalogue/halloween-2026-families.json`     | Family selections and regular members       |
+| `data/catalogue/halloween-2026-type-review.json`  | Type-discovered candidates                  |
+| `data/catalogue/halloween-2026-form-details.json` | Reviewed form source metadata               |
+| `data/catalogue/halloween-2026-ghosts.json`       | Reviewed Ghost entries                      |
+| `data/catalogue/halloween-2026-variants.json`     | Hangry Morpeko and ORAS costumes            |
+| `data/catalogue/merged-entries.json`              | Combined entries and rated encounter groups |
 
-| Field                            | Meaning                                      |
-| -------------------------------- | -------------------------------------------- |
-| `id`                             | ID referenced by entries                     |
-| `speciesId`, `nationalDexNumber` | Shared species identity                      |
-| `entryIds`                       | All member collection IDs                    |
-| `rarityClass`                    | `common`, `uncommon`, `rare`, or `ultraRare` |
+Existing tracked samples remain examples. Everything under data/catalogue is ignored;
+do not force-add it. Final production packaging is not implemented.
 
-Non-costume entries use canonical `formId` as their group. Costumes use `speciesId`.
-Thus regular and Alolan Marowak are separate groups, gendered Basculegion shares one,
-and Pikachu costumes join `pikachu`. Extra variants do not multiply group weight.
+The verified merge has 632 input entries, 12 identical overlaps removed, 620 entries,
+and 277 groups. It remains `sampleOnly: true`. See [Data Model](DATA_MODEL.md).
 
-`config/rarity.json` resolves a default plus exact-ID overrides during merging.
-`game.json` holds numerical weights. Rarity changes do not change collection identity
-or grant eligibility. See [Configuration](CONFIGURATION.md#rarity-assignments).
+## Merge behavior
 
-## Families, forms, and events
+The merger reads the four generated entry catalogues and `config/rarity.json` locally;
+it does not fetch API resources. Entry validation rejects malformed records, duplicate
+IDs within a source, conflicting cross-source copies, and inconsistent counterparts.
+Group validation rejects inconsistent species references. Rarity overrides must use
+known group IDs and one of the four supported classes.
 
-Regular entries use species introduction metadata; reviewed forms use their resolved
-form version-group generation. Gender indexing follows the represented form's generation.
+All validation precedes output replacement. Temporary-file replacement protects the
+previous merged file from validation failure; the entire multi-command import workflow
+is not transactional. Correct problems upstream, never by editing generated JSON.
 
-Family import traverses all source evolution branches, but generates regular entries;
-reviewed form import supplies additional forms separately. Runtime family selectors
-resolve a species slug to `evolutionChainId` and match represented entries. This does
-not prove the catalogue contains every possible member or form of that family.
+## Cache and media
 
-Do not store permanent Halloween/Christmas flags on entries. Event configuration
-selects types, families, forms, and explicit costumes. Generation restrictions still
-apply after matching. `eventOnly: false` does not mean universally available.
+PokéAPI responses are stored in `cache/`, for example:
 
-The costume converter produces ten entries: female normal/shiny for each of the five
-ORAS outfits, introduced in Generation 6, grouped under Pikachu, and event-only.
-Hangry Morpeko has two unspecified entries, its own group, Generation 8, and
-`eventOnly: false`; it still needs an event exception during Season 1.
+```text
+cache/pokemon--pikachu.json
+cache/pokemon-species--pikachu.json
+cache/evolution-chain--10.json
+```
 
-## C# availability structures
+The terminal reports `[download]` or `[cache]`. With all required valid responses cached,
+commands can reuse them without downloading. The cache is not automatically refreshed
+or a versioned source snapshot.
 
-| Class                      | Responsibility                                                |
-| -------------------------- | ------------------------------------------------------------- |
-| `CatalogueLoader`          | Read and deserialize the intermediate file; invoke validation |
-| `CatalogueValidator`       | Check values, counterparts, groups, and references            |
-| `CatalogueIndex`           | Owned copies and exact case-sensitive ID lookups              |
-| `EligibleCataloguePool`    | General eligible IDs and an Event subset for one instant      |
-| `EligibilityPoolBuilder`   | Resolve schedules/selectors and generation restrictions       |
-| `EncounterCategoryBuilder` | Build populated categories/groups for one shiny state         |
+To refresh a resource: stop the importer, delete only its cache file, then rerun the
+relevant command. Only missing files trigger downloads. Invalid JSON/resource identity,
+permission errors, and other read failures are reported. Requests have a 15-second timeout.
 
-Returned index records are independent copies, including nested lists and media.
-Unknown entry/group lookups return null; unknown group-member requests throw.
-The runtime must retain the index and refresh pools; these classes do not create a
-live cache automatically.
+Media checks validate references, not every remote file. Null artwork/audio must not
+remove an otherwise valid entry. A present URL does not prove that it loads or matches
+the correct form, gender, or shiny state.
 
-Category candidates retain eligible entry subsets. An Event category selecting only
-costumes cannot award a regular variant that failed its selectors. An ordinary type
-can include both when independently eligible. Ownership completion and random variant
-selection remain unimplemented.
+## Where to change code
 
-## Merge and validation guarantees
+| Location/module                                                                                 | Responsibility                                  |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `scripts/types/catalogue.ts`                                                                    | Entry/group/rarity contracts                    |
+| `scripts/lib/pokeapi.ts`                                                                        | Resource access, identity checks, cache         |
+| `read-evolution-chain-id.ts`, `collect-evolution-species.ts` in lib                             | Family references/traversal                     |
+| `create-pikachu-entries.ts`, `create-regular-entries.ts` in lib                                 | Sample and regular conversion                   |
+| `create-form-entries.ts`, `create-event-variant-entries.ts` in lib                              | Reviewed forms/costumes                         |
+| `validate-collection-entry.ts`, `validate-entry-counterparts.ts` in lib                         | Entry and counterpart validation                |
+| `merge-collection-entries.ts`, `create-encounter-groups.ts`, `apply-encounter-rarity.ts` in lib | Merge, grouping, rarity resolution              |
+| `scripts/import-*.ts`, `review-*.ts`, `inspect-*.ts`                                            | Workflow coordination/reports                   |
+| `scripts/merge-catalogue.ts`                                                                    | Read, validate, merge, and save current outputs |
+| `scripts/serve-overlay.ts`                                                                      | Local overlay server and test endpoint          |
+| `scripts/tests/`                                                                                | Offline behavior checks and fixtures            |
+| `package.json`, `tsconfig.json`, `eslint.config.mts`                                            | Commands, compilation, linting                  |
 
-- Duplicate IDs within a source fail. Identical entries across sources deduplicate.
-- Conflicting copies of an ID fail with source context; file order does not choose a winner.
-- Entries are sorted by dex number then ID; group generation has deterministic ordering.
-- TypeScript validates required/unknown fields, supported values, identity relationships,
-  media-reference structure, and matching normal/shiny counterparts.
-- Group generation rejects conflicting species/dex metadata. Rarity rejects unknown
-  group overrides and unsupported classes.
-- C# validates counterparts, group references, exact membership, supported metadata,
-  and required properties. Its loader rejects unknown properties and trailing content.
-- Active-event resolution rejects absent family-selector species, forms, and costumes.
-  It does not resolve every inactive event or certify complete catalogue coverage.
+## Testing and contribution workflow
 
-Validation is not verification of every Pokémon fact or remote media file. C# and
-TypeScript validators have separate implementations; do not assume identical coercion
-behavior for arbitrary malformed JSON. Use the tested generation workflow.
+Offline tests include catalogue conversion, event variants, merging, entry validation,
+encounter groups, and rarity assignments. Keep all existing test files in `test:tools`
+when adding new checks. Tests use fresh fixtures; they do not require API/cache access.
 
-## Media and source boundaries
+Importer assertions separately check real cached/downloaded data: representative genders,
+Generation 1 coverage, reviewed forms, counterpart consistency, and overlapping outputs.
+Inspection reports alone do not prove conversion correctness. Filesystem failure paths,
+downloader behavior, and every remote asset are not exhaustively covered.
 
-Store references, not embedded image/audio data. Read source URLs instead of guessing
-them. Null means missing; an HTTP(S) reference does not prove reachability or correct
-artwork/audio. Reviewed fallback rules must not substitute the wrong alternate form.
+Before committing:
 
-PokéAPI supplies data; the project owns identity, grouping, costume classification,
-rarity, and shiny availability decisions. Ambiguous forms need review before conversion.
-See [PokéAPI](https://pokeapi.co/docs/v2/) for source documentation.
+1. Run behavior checks for changed code and regenerate affected catalogues when needed.
+2. Run `npm run format`, then `npm run check`.
+3. Run relevant [C# checks](CSHARP_DEVELOPMENT.md#standalone-checks) for C# or contract changes.
+4. Use the overlay's manual checklist when presentation behavior changes.
+5. Review `git diff --check`, `git status --short`, and the diff.
+6. Update the relevant guide and stage only intended changes.
 
-## Player data and future releases
+Treat external JSON as unknown until validated; type assertions are not validation.
+Use type-only imports, preserve stable IDs, and explain non-obvious rules in comments.
+Keep fetching, conversion, and file writing separate. Preserve regression checks when
+refactoring. Do not disable lint rules merely to hide unexplained errors.
 
-The catalogue contains no viewer IDs, ownership, timestamps, streaks, or redemptions.
-Intended ownership keys are `(viewer, season, entry)` for seasonal uniqueness and
-`(viewer, entry)` for lifetime uniqueness. Recatches across seasons add history, not
-another unique bonus.
+## Remaining integration
 
-For content updates: preserve IDs, validate changed mappings and overlapping sources,
-review rarity, report missing media, and retain definitions needed by historical catches.
-Retiring availability must not destroy history. Release metadata, final packaging,
-controlled deployment, and archival compatibility remain to be implemented.
+The current catalogue can be loaded in C# and used to build eligible categories.
+Deterministic weighted selection is available separately. A random-number source,
+complete encounter selection, viewer-specific ownership filtering, catches/redemptions, controlled
+runtime loading/reloading, and production catalogue packaging remain. See
+[Architecture](ARCHITECTURE.md) for boundaries rather than treating imports as a live game.

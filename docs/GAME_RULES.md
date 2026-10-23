@@ -1,183 +1,226 @@
-# Development Guide
+# Game Rules
 
-This guide covers Node/TypeScript tooling and catalogue generation. Use
-[C# Development](CSHARP_DEVELOPMENT.md) for C# builds/tests and
-[Catch Overlay](CATCH_OVERLAY.md) for OBS preview setup.
+This is the intended gameplay contract. Rules below include behavior not yet implemented;
+see the [README](../README.md) for status and [Configuration](CONFIGURATION.md) for settings.
 
-## Setup
+## Redemption and collection basics
 
-Requirements: Node.js 24+, npm, and internet access for installation/uncached resources.
-Run all commands from the repository root.
+| Rule                | Behavior                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| Cost                | 500 channel points covers every attempt in one redemption                                         |
+| Catch limit         | At most one successful catch per redemption                                                       |
+| Cooldown            | 60 seconds per viewer, beginning at acceptance; other viewers can redeem                          |
+| Usage limit         | No per-stream limit beyond the per-viewer cooldown                                                |
+| Refunds             | No automatic refunds, including duplicates, empty pools, cooldown rejections, or technical errors |
+| Seasonal uniqueness | Each collectible entry can be caught once per season                                              |
+| Lifetime history    | Every successful catch remains recorded across seasons                                            |
 
-```powershell
-node --version
-npm --version
-npm ci
-```
+Use Twitch user IDs for identity and cooldowns. Renaming a viewer must not reset progress.
+A cooldown rejection performs no rolls, does not alter the streak, and does not extend
+cooldown. Explain the cooldown and no-refund policy in the reward description.
 
-Use the committed lockfile. TypeScript is pinned to 5.9.3; review its compatibility with
-typescript-eslint before upgrading. Commit package.json and package-lock.json together
-when both change. Never commit node_modules.
+National Dex totals distinguish total catches from unique entries. Catching the same
+normal Abra in Seasons 1, 3, and 5 means three catches but one lifetime unique entry.
+Failed duplicates do not count. A dual-type catch contributes to both type totals, so
+summed type totals can exceed total catches. Default chat progress is seasonal;
+National totals are for the later showcase/leaderboard.
 
-Edit `scripts/**/*.ts` for Node tools and `overlay/src/**/*.ts` for the browser.
-The builds produce `dist/` and `overlay/dist/`; do not edit or commit generated JavaScript.
-Relative TypeScript imports use `.js` extensions because the compiled output runs as
-Node ES modules. Browser TypeScript has a separate config with DOM types and `types: []`.
+## Collectible identity
 
-## Everyday commands
+Normal/shiny states, supported forms, costumes, and visible gender differences count
+separately. Regular Pikachu has male/female × normal/shiny entries. Pokémon without
+supported visible gender differences share a gender identity; single-gender forms
+retain only their supported gender. Never invent a counterpart.
 
-| Command                                   | Purpose                                                                         |
-| ----------------------------------------- | ------------------------------------------------------------------------------- |
-| `npm run check`                           | Node/browser type checks, ESLint, compiled tooling tests, then formatting check |
-| `npm run test:tools`                      | Compile and run offline catalogue-tool tests                                    |
-| `npm run typecheck`                       | Check Node tooling without emitting JavaScript                                  |
-| `npm run typecheck:overlay`               | Check browser TypeScript without emitting                                       |
-| `npm run build:tools`                     | Compile Node tools                                                              |
-| `npm run build:overlay`                   | Compile browser overlay                                                         |
-| `npm run lint` / `npm run lint:fix`       | Report issues / apply supported fixes                                           |
-| `npm run format` / `npm run format:check` | Format supported files / check without edits                                    |
-| `npm run overlay:serve`                   | Build tools and overlay, then run the local preview server                      |
+Every included form/gender has a shiny entry, even if officially shiny-locked. Missing
+artwork does not remove an entry; any substitute must be clearly identified as a fallback.
+Forms unlock using their own introduction generation, not their species' debut.
 
-`npm run check` does not build C#, run API-backed importers, or validate generated
-catalogue files. Its test step emits JavaScript in dist. Prettier does not format C#.
-ESLint covers configured Node tooling, the TypeScript ESLint config, and browser source.
+Distinct non-costume forms have separate encounter groups. Gender and shiny counterparts
+share a group; costumes share the underlying Pokémon group. See [Data Model](DATA_MODEL.md).
 
-## Generate the current catalogue
+## Encounter sequence
 
-Run in this order, stopping if any command fails. Each importer/inspection command
-builds the tools before running its script.
+At acceptance, capture season/event settings, seasonal ownership, retry attempts,
+lifetime unique counts, and the current subscription multiplier. Each redemption uses
+one consistent snapshot throughout processing, even across a schedule boundary.
 
-```powershell
-npm run import:sample
-npm run import:regular-sample
-npm run import:gen1
-npm run import:event-families
-npm run review:event-types
-npm run inspect:event-forms
-npm run import:reviewed-ghosts
-npm run inspect:event-variants
-npm run import:event-variants
-npm run merge:catalogue
-```
+For each attempt:
 
-| Stage                       | What it does                                                                   |
-| --------------------------- | ------------------------------------------------------------------------------ |
-| Samples                     | Generate Pikachu and representative gender-case examples; compare converters   |
-| Generation 1                | Generate regular entries and verify species coverage                           |
-| Event families              | Resolve all evolution branches and generate regular family members             |
-| Type review                 | Discover candidates matching Halloween's type selectors                        |
-| Form inspection             | Record form metadata for review before conversion                              |
-| Reviewed Ghost import       | Convert reviewed forms; compare overlap against Generation 1                   |
-| Explicit variant inspection | Print metadata for Hangry Morpeko and five costumes; does not generate entries |
-| Explicit variant import     | Generate two Morpeko and ten female-only costume entries                       |
-| Merge                       | Validate, deduplicate, check counterparts, build groups, and apply rarity      |
+1. Roll shiny unless protection already makes the attempt shiny.
+2. Build eligible categories for that shiny state; exclude empty and completed categories.
+3. Select a category by its weight.
+4. Select a Pokémon encounter group by its rarity weight.
+5. Flip a fair gender coin when both indexed genders are supported.
+6. Select the available regular variant or an incomplete eligible costume with equal weights.
+7. Apply costume gender protection, then check seasonal ownership.
+8. Save one new catch and end the redemption, or continue after a failed attempt.
 
-The reviewed Ghost import depends on the form-details report and Generation 1 output.
-The workflow currently targets `halloween-2026`; changing an event ID alone does not
-make its scripts support another event. New ambiguous form mappings require review.
+Variant selection stays inside the selected category's eligible entries. For example,
+if only costumes qualify for the Event category, that category cannot award regular
+Pikachu. The Electric category can include regular Pikachu when it is independently eligible.
 
-An old output can remain after a failed command. Its existence is not evidence that
-the latest run succeeded. Regenerate affected downstream outputs after source changes.
+### Category and group weights
 
-## Output reference
+Each populated ordinary type category has weight 1 by default. An active, nonempty Event
+category has its configured weight, initially 4. Event Pokémon also join their actual types.
+Multiple matching event selectors do not duplicate a group within a category.
 
-| Path                                              | Contents                                    |
-| ------------------------------------------------- | ------------------------------------------- |
-| `data/samples/pikachu.json`                       | Four regular Pikachu entries                |
-| `data/samples/regular-species.json`               | Representative regular species              |
-| `data/catalogue/generation-1.json`                | Regular Generation 1 entries                |
-| `data/catalogue/halloween-2026-families.json`     | Family selections and regular members       |
-| `data/catalogue/halloween-2026-type-review.json`  | Type-discovered candidates                  |
-| `data/catalogue/halloween-2026-form-details.json` | Reviewed form source metadata               |
-| `data/catalogue/halloween-2026-ghosts.json`       | Reviewed Ghost entries                      |
-| `data/catalogue/halloween-2026-variants.json`     | Hangry Morpeko and ORAS costumes            |
-| `data/catalogue/merged-entries.json`              | Combined entries and rated encounter groups |
+With all 18 types and Event available, total category weight is 22: each type has 1/22
+and Event has 4/22. Empty/completed categories change that denominator. Event weight is
+not a fixed percentage or a direct multiplier on every event Pokémon's final odds.
 
-Existing tracked samples remain examples. Everything under data/catalogue is ignored;
-do not force-add it. Final production packaging is not implemented.
+| Group rarity | Default weight |
+| ------------ | -------------: |
+| common       |             10 |
+| uncommon     |              6 |
+| rare         |              3 |
+| ultraRare    |              1 |
 
-The verified merge has 632 input entries, 12 identical overlaps removed, 620 entries,
-and 277 groups. It remains `sampleOnly: true`. See [Data Model](DATA_MODEL.md).
+Select individual groups using their weights; do not roll a rarity class first.
+With one group of each class, their probabilities are 50%, 30%, 15%, and 5%.
+Different group counts change those probabilities. There is no BST roll.
+Extra genders or costumes do not give a group extra tickets.
 
-## Merge behavior
+### Completion and duplicates
 
-The merger reads the four generated entry catalogues and `config/rarity.json` locally;
-it does not fetch API resources. Entry validation rejects malformed records, duplicate
-IDs within a source, conflicting cross-source copies, and inconsistent counterparts.
-Group validation rejects inconsistent species references. Rarity overrides must use
-known group IDs and one of the four supported classes.
+Category completion uses currently obtainable entries in the Seasonal Dex, separately
+for normal and shiny states. A new event can reopen a previously completed type.
+If one type is complete, a dual-type Pokémon can still appear through its other category.
 
-All validation precedes output replacement. Temporary-file replacement protects the
-previous merged file from validation failure; the entire multi-command import workflow
-is not transactional. Correct problems upstream, never by editing generated JSON.
+Do not remove all owned regular entries from incomplete categories. They can still
+produce duplicates. If no eligible category remains for the rolled state, the attempt
+fails. Completing the normal collection never forces a shiny result. The same failure
+rule applies when both collections are complete.
 
-## Cache and media
+### Costume variants and gender
 
-PokéAPI responses are stored in `cache/`, for example:
+Within the selected category, the eligible regular variant and each incomplete costume
+receive equal variant weight. Regular plus eight costumes means 1/9 for regular and
+8/9 for any costume combined. The regular variant remains a possible duplicate.
+
+For a selected costume:
+
+- Both supported genders missing: retain the fair coin result.
+- One supported gender missing: award that gender regardless of the initial coin.
+- Only one supported gender exists: use it.
+- All supported genders owned for this shiny state: remove that costume option.
+
+Award at most one entry, never both genders. Normal costume completion does not remove
+its shiny option. Costumes require explicit inclusion in an active event, regardless of
+whether their generation is unlocked. The five ORAS costumes are female-only.
+
+## Shiny progression
+
+Calculate probability once per redemption. Let N be lifetime unique normal entries,
+S lifetime unique shiny entries, and T the current subscription multiplier.
 
 ```text
-cache/pokemon--pikachu.json
-cache/pokemon-species--pikachu.json
-cache/evolution-chain--10.json
+combinedMilestones = floor((N + S) / 50)
+shinyMilestones = floor(S / 10)
+collectionMultiplier = 1 + combinedMilestones * 0.10 + shinyMilestones * 0.05
+shinyProbability = min(1, collectionMultiplier * T / 8192)
 ```
 
-The terminal reports `[download]` or `[cache]`. With all required valid responses cached,
-commands can reuse them without downloading. The cache is not automatically refreshed
-or a versioned source snapshot.
+Bonuses are additive, not compounded. Only full milestones count. A shiny contributes
+both to N+S and to the extra shiny bonus. Recatching an entry in another season gives
+no additional unique bonus.
 
-To refresh a resource: stop the importer, delete only its cache file, then rerun the
-relevant command. Only missing files trigger downloads. Invalid JSON/resource identity,
-permission errors, and other read failures are reported. Requests have a 15-second timeout.
+| Subscription   | Multiplier |
+| -------------- | ---------: |
+| None           |          1 |
+| Prime / Tier 1 |          2 |
+| Tier 2         |        2.5 |
+| Tier 3         |        3.5 |
 
-Media checks validate references, not every remote file. Null artwork/audio must not
-remove an otherwise valid entry. A present URL does not prove that it loads or matches
-the correct form, gender, or shiny state.
+Apply only the applicable tier, after collection bonuses. At N=100, S=100 and Tier 1,
+the multiplier is `(1 + 0.40 + 0.50) * 2 = 3.80`: approximately 1 in 2,156 per shiny roll.
 
-## Where to change code
+Once an attempt rolls shiny, every remaining attempt in that redemption stays shiny.
+Re-select categories and Pokémon on subsequent attempts; duplicates remain possible.
+Protection ends with the redemption and never carries to the next one.
 
-| Location/module                                                                                 | Responsibility                                  |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `scripts/types/catalogue.ts`                                                                    | Entry/group/rarity contracts                    |
-| `scripts/lib/pokeapi.ts`                                                                        | Resource access, identity checks, cache         |
-| `read-evolution-chain-id.ts`, `collect-evolution-species.ts` in lib                             | Family references/traversal                     |
-| `create-pikachu-entries.ts`, `create-regular-entries.ts` in lib                                 | Sample and regular conversion                   |
-| `create-form-entries.ts`, `create-event-variant-entries.ts` in lib                              | Reviewed forms/costumes                         |
-| `validate-collection-entry.ts`, `validate-entry-counterparts.ts` in lib                         | Entry and counterpart validation                |
-| `merge-collection-entries.ts`, `create-encounter-groups.ts`, `apply-encounter-rarity.ts` in lib | Merge, grouping, rarity resolution              |
-| `scripts/import-*.ts`, `review-*.ts`, `inspect-*.ts`                                            | Workflow coordination/reports                   |
-| `scripts/merge-catalogue.ts`                                                                    | Read, validate, merge, and save current outputs |
-| `scripts/serve-overlay.ts`                                                                      | Local overlay server and test endpoint          |
-| `scripts/tests/`                                                                                | Offline behavior checks and fixtures            |
-| `package.json`, `tsconfig.json`, `eslint.config.mts`                                            | Commands, compilation, linting                  |
+## Retry streaks
 
-## Testing and contribution workflow
+```text
+availableAttempts = 1 + consecutiveFullyFailedRedemptions
+```
 
-Offline tests include catalogue conversion, event variants, merging, entry validation,
-encounter groups, and rarity assignments. Keep all existing test files in `test:tools`
-when adding new checks. Tests use fresh fixtures; they do not require API/cache access.
+| Outcome                                 | Effect                                                              |
+| --------------------------------------- | ------------------------------------------------------------------- |
+| New seasonal entry                      | Save one catch, stop, reset streak to zero, discard unused attempts |
+| All attempts fail                       | No catch; increment streak once for the redemption                  |
+| Technical failure                       | Log separately; do not silently count it as a gameplay failure      |
+| Repeated delivery of a saved redemption | Reuse the stored outcome; no fresh rolls or second streak change    |
 
-Importer assertions separately check real cached/downloaded data: representative genders,
-Generation 1 coverage, reviewed forms, counterpart consistency, and overlapping outputs.
-Inspection reports alone do not prove conversion correctness. Filesystem failure paths,
-downloader behavior, and every remote asset are not exhaustively covered.
+Example: with eight attempts, normal duplicates on 1–2 and a shiny duplicate on 3
+make attempts 4–8 shiny. A new shiny on 5 ends the redemption; 6–8 are unused.
+The next redemption has one attempt and the usual shiny probability.
 
-Before committing:
+## Seasons
 
-1. Run behavior checks for changed code and regenerate affected catalogues when needed.
-2. Run `npm run format`, then `npm run check`.
-3. Run relevant [C# checks](CSHARP_DEVELOPMENT.md#standalone-checks) for C# or contract changes.
-4. Use the overlay's manual checklist when presentation behavior changes.
-5. Review `git diff --check`, `git status --short`, and the diff.
-6. Update the relevant guide and stage only intended changes.
+The default schedule uses Europe/Oslo and cumulative unlocks:
 
-Treat external JSON as unknown until validated; type assertions are not validation.
-Use type-only imports, preserve stable IDs, and explain non-obvious rules in comments.
-Keep fetching, conversion, and file writing separate. Preserve regression checks when
-refactoring. Do not disable lint rules merely to hide unexplained errors.
+| Season | Start                                            | Exclusive end   | Generations |
+| ------ | ------------------------------------------------ | --------------- | ----------- |
+| 1      | October 3, 2026 (configured launch-season start) | January 1, 2027 | 1           |
+| 2      | January 1, 2027                                  | January 1, 2028 | 1–2         |
+| 3      | January 1, 2028                                  | January 1, 2029 | 1–3         |
 
-## Remaining integration
+Review the initial launch date before live use. Custom seasons need not be annual.
+Starts are inclusive; ends exclusive. Consecutive seasons must meet without gaps or
+overlaps. Future seasons are explicit, not automatically created.
 
-The current catalogue can be loaded in C# and used to build eligible categories.
-Random selection, viewer-specific ownership filtering, catches/redemptions, controlled
-runtime loading/reloading, and production catalogue packaging remain. See
-[Architecture](ARCHITECTURE.md) for boundaries rather than treating imports as a live game.
+New seasons start fresh seasonal ownership and retry streaks. Preserve archived catches,
+National totals, and unique bonuses. Cooldown does not reset at a season boundary.
+A redemption belongs to the season selected at acceptance, including recovery after errors.
+
+## Events
+
+One enabled event can be active at a time. Event gaps and an empty schedule are valid.
+Enabled events cannot overlap. Disabling an event does not erase previous catches.
+Dates are explicit; events do not automatically repeat next year.
+
+Selectors combine matching supported entries without duplication:
+
+- Types select non-costume forms with that type, including dual types.
+- Families select all represented stages, branches, and non-costume forms in the family.
+- Forms select specific non-costume forms without adding unrelated forms/family members.
+- Costumes require explicit costume selectors.
+
+By default events may unlock matching later-generation entries, except Legendary and
+Mythical entries whose form introduction generation remains locked. Already-unlocked
+Legendary/Mythical entries remain available and may join a matching Event category.
+The restriction flags are configurable for other creators; this is the project's policy.
+
+When the event ends, entries depending on it leave availability; otherwise-unlocked
+entries remain. Preserve every catch. Future history should record season, time,
+active event, roster membership, and selected encounter category. An event-roster catch
+can come through an ordinary type category.
+
+### Initial Halloween roster
+
+October 1 through October 31, 2026; exclusive end November 1 at Oslo midnight.
+
+- All supported Ghost-type entries, subject to generation restrictions above.
+- Full families selected by: houndoom, zoroark, absol, hatterene, mawile, grimmsnarl,
+  spinarak, cubone, murkrow, gothitelle, dipplin, swirlix, delphox, sableye.
+- `morpeko-hangry` specifically; this does not add Full Belly Mode to the event exception.
+- `pikachu-rock-star`, `pikachu-belle`, `pikachu-pop-star`, `pikachu-phd`, `pikachu-libre`.
+
+Ghost typing alone does not add non-Ghost evolution relatives. Family selectors cover
+supported represented forms, including Alolan Marowak. GO-exclusive costumes are excluded,
+including witch, Mimikyu, Charizard, Umbreon, Rayquaza, and Lucario-themed Pikachu costumes.
+December and later rosters are deferred.
+
+## Saved results and presentation
+
+Production catches must be committed before chat or overlay announcements. Duplicate
+redemption deliveries must not award extra catches. An overlay/media failure never
+rerolls, removes a saved catch, or changes the streak.
+
+The intended notification shows avatar/name, catch text (explicitly identifying shiny),
+then the matching sprite rising and gently bobbing, with one cry. Missing media must
+not block later notifications. Queue display independently of game processing.
+Production delivery needs deduplication; the current preview does not implement it.
+See [Catch Overlay](CATCH_OVERLAY.md) for actual setup, behavior, and limits.

@@ -1,246 +1,156 @@
-# C# Development
+# Database
 
-Build, standalone checks, DLL installation, and pasted Streamer.bot actions are separate
-steps. This guide provides the workflow; [Architecture](ARCHITECTURE.md) explains component
-boundaries and [Database](DATABASE.md) owns storage behavior.
+SQLite runs locally through the C# library; no separate database server is required.
+Initialization, trainer profiles, and season registration are implemented and checked
+inside Streamer.bot. Catch storage and redemption processing are still planned.
 
-## Setup
+For installation use [SQLite Setup](SQLITE_SETUP.md); for running actions use
+[C# Development](CSHARP_DEVELOPMENT.md#run-manual-streamerbot-checks).
 
-Verified environment: Windows x64, .NET SDK 10.0.401, Streamer.bot 1.0.7, target
-.NET Framework 4.8.1, C# 7.3. Installing SDK 10 does not change Streamer.bot's runtime.
-Use Microsoft's C# extension for VS Code and follow [SQLite Setup](SQLITE_SETUP.md).
+## Schema and initialization
 
-Copy `streamerbot/StreamerBot.local.props.example` to
-`streamerbot/StreamerBot.local.props`, then set the folder containing Streamer.bot.exe:
+Current schema version: **3**. The storage project is
+`streamerbot/storage/PokeHunter.Storage.csproj`.
 
-```xml
-<Project>
-  <PropertyGroup>
-    <StreamerBotPath>C:\Tools\Streamer.bot</StreamerBotPath>
-  </PropertyGroup>
-</Project>
-```
+| Version | Embedded SQL file                | Recorded name            |
+| ------- | -------------------------------- | ------------------------ |
+| 1       | `001_CreateMigrationHistory.sql` | Create migration history |
+| 2       | `002_CreateTrainers.sql`         | Create trainers          |
+| 3       | `003_CreateSeasons.sql`          | Create seasons           |
 
-Use your actual path without surrounding quotes. The local file is ignored; commit the
-example only. Run the following commands from the repository root.
+Files live in `streamerbot/storage/migrations/`. The csproj embeds them with explicit
+LogicalName values; the initializer registry determines execution order. Embedding does
+not execute SQL. Rebuild/redeploy Storage after changing migration source.
 
-## Projects and build
+`DatabaseInitializer.Initialize(databasePath)` requires a full normalized absolute path.
+It creates missing parent directories, opens/creates the database, enables/verifies foreign
+keys, starts an immediate transaction, verifies application marker/version/history, applies
+missing migrations, validates the result, and commits. Pending migrations and history
+updates commit together; failure attempts rollback.
 
-| Project                                            | Purpose                                                                         |
-| -------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `streamerbot/PokeHunter.StreamerBot.csproj`        | Editor/API references and compilation of action source; references Core/Storage |
-| `streamerbot/configuration/PokeHunter.Core.csproj` | Configuration, schedules, catalogue, eligibility, categories                    |
-| `streamerbot/storage/PokeHunter.Storage.csproj`    | SQLite initialization, embedded migration SQL, repositories                     |
-| `tests/configuration/ConfigurationChecks.csproj`   | Standalone configuration checks                                                 |
-| `tests/catalogue/CatalogueChecks.csproj`           | Standalone catalogue, lookup, eligibility, and category checks                  |
+Fresh databases receive 1–3. Supported existing databases receive missing migrations only.
+A valid version-3 database needs no migration; existing history timestamps are preserved.
+Every future connection must enable foreign-key enforcement too.
 
-```powershell
-dotnet build streamerbot/PokeHunter.StreamerBot.csproj
-```
+The initializer rejects negative/newer versions, unrelated version-0 databases with
+objects or an existing marker, incorrect initialized markers, and missing/unexpected/
+mismatched history. History checks ordered versions, names, and nonempty timestamps;
+this is not a complete integrity audit.
 
-This builds the referenced libraries but does not run checks or install anything.
-Core/Storage source is excluded from direct compilation by the action project to avoid
-duplicate assemblies. Do not install PokeHunter.StreamerBot.dll; actions use pasted source.
-Generated bin/obj directories stay ignored.
+## Trainer repository
 
-## Standalone checks
+`TrainerRepository` requires an initialized database with the expected marker/current
+version. It does not create databases or migrate them.
 
-Build immediately before running. The guards below prevent accidentally executing an
-old binary after a failed build.
+| Column in trainers | Purpose                            |
+| ------------------ | ---------------------------------- |
+| `twitch_user_id`   | Permanent identity and primary key |
+| `login_name`       | Latest saved Twitch login          |
+| `display_name`     | Latest saved display name          |
+| `created_at_utc`   | First saved timestamp              |
+| `updated_at_utc`   | Last profile-change timestamp      |
 
-### Configuration
+All columns are non-null and reject empty/ordinary-space-only text. Repository validation
+also rejects missing values, surrounding whitespace, and control characters; it preserves
+capitalization/international text rather than reproducing every Twitch naming rule.
 
-```powershell
-dotnet build tests/configuration/ConfigurationChecks.csproj
-if ($LASTEXITCODE -eq 0) {
-    & ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json" ".\config\seasons.json" ".\config\events.json"
-}
-```
+- `FindByTwitchUserId` returns an immutable Trainer snapshot or null if unknown.
+- `SaveProfile` creates or updates names under the same Twitch ID.
+- Unchanged profiles preserve both timestamps. Renames preserve creation time and update
+  the modified time; names do not create a new trainer.
+- Parameterized SQL separates values from instructions. Save lookup/write uses an immediate
+  transaction. Database failures propagate; they are not reported as success or absence.
 
-Three arguments, in order: game, seasons, events. Checks include real-file loading,
-invalid milestone size, explicit offsets, season continuity/boundaries, event gaps and
-disabled/overlapping schedules, invalid event settings, and time-zone conversions.
+## Season repository
 
-### Catalogue and encounter preparation
+`seasons` stores identity, display name, UTC boundaries, and registration timestamp.
+`season_generations` stores one row per unlocked generation; its composite primary key
+prevents duplicates. A foreign key requires an existing season and restricts deletion or
+renaming while generation rows reference it.
 
-Generate the merged catalogue first using [Development](DEVELOPMENT.md).
+`StoredSeason` is an immutable snapshot with a copied read-only generation list.
+`SeasonRepository` requires initialized storage and provides:
 
-```powershell
-dotnet build tests/catalogue/CatalogueChecks.csproj
-if ($LASTEXITCODE -eq 0) {
-    & ".\tests\catalogue\bin\Debug\net481\win-x64\CatalogueChecks.exe" ".\data\catalogue\merged-entries.json"
-}
-```
+- `FindById`: return a season or null.
+- `Register`: insert a new definition or return its equivalent stored record.
 
-One argument: catalogue path. Checks include real-file loading, rejected schemas/properties,
-counterparts, rarity and broken references, duplicate IDs, missing group membership,
-nullable media, independent index copies, eligibility, and category construction.
-Eligibility/category checks use fixed test schedules, not every event in config/events.json.
+IDs use C# OrdinalIgnoreCase, including international text; original capitalization is
+preserved. This is implemented explicitly rather than relying on SQLite's ASCII-only
+NOCASE behavior. Equivalent registration requires an exact name, equivalent boundary
+instants, and the same generation set regardless of order. It preserves the original
+record and creation time without duplicate rows.
 
-Both programs return 0 on success and 1 on failure. Invalid-input fixtures use temporary
-copies; original JSON and player databases are not modified. Cleanup is attempted and
-failures are reported. Standalone projects reference the actual Core library and copy
-Newtonsoft.Json beside their executables (`Private=true`). No Streamer.bot restart or
-DLL deployment is needed just to run these checks.
+Different names, boundaries, or generations for an existing ID are rejected. There is
+no automatic stored-season update workflow. Schedule continuity belongs to configuration
+validation; the repository checks the individual definition.
 
-### Preserve regression coverage
+Season and generation rows are inserted in one BEGIN IMMEDIATE transaction. A failed
+insert rolls back the whole registration. Configuration chooses the active season;
+storage preserves the history reference. This uses schema 3 without an additional migration.
 
-Check classes are explicitly called, not automatically discovered. Call a new group's
-Run method from the appropriate runner. Existing checks must remain active when refactored.
-Use fresh fixtures and change only the behavior under test. Expected failures must match
-the intended error, not accept any exception. Print PASS only after assertions succeed.
+## Verified checks and limits
 
-Configuration helpers include CheckAssert, TestJsonFiles, and EventTestFixtures.
-Catalogue Program calls CatalogueIndexChecks and EligibilityChecks; the latter calls
-EncounterCategoryChecks. These checks cover selected behaviors, not every validation branch.
+| Check              | Evidence                                                                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| SQLite persistence | Counter survives reopening and normal Streamer.bot restart                                                                                |
+| Initialization     | History preserved; existing upgrades and fresh/repeated schema-3 initialization; expected columns                                         |
+| Rejection          | Newer/unrelated fixture databases rejected without changed file bytes                                                                     |
+| Trainers           | Create/read across repositories; rename/unchanged timestamps; isolation, no duplicate rows; blank login rejected                          |
+| Seasons            | UTC equivalence; case-insensitive IDs; conflicts/invalid generations rejected; deliberate child-insert failure rolls back; retry succeeds |
 
-## Install shared libraries
+The persistent test database upgraded from 1→2→3. Later runs test idempotence, not those
+upgrades again. Column checks do not prove every constraint. Concurrent initialization,
+concurrent repository writes, partial migration failure, and all input-validation branches
+have not been exhaustively tested.
 
-After a successful build, fully exit Streamer.bot (including its tray instance), then copy:
+## Database locations
 
-| Repository build output                                            | Streamer.bot destination      |
-| ------------------------------------------------------------------ | ----------------------------- |
-| `streamerbot/configuration/bin/Debug/net481/PokeHunter.Core.dll`   | `dlls/PokeHunter.Core.dll`    |
-| `streamerbot/configuration/bin/Debug/net481/TimeZoneConverter.dll` | `dlls/TimeZoneConverter.dll`  |
-| `streamerbot/storage/bin/Debug/net481/PokeHunter.Storage.dll`      | `dlls/PokeHunter.Storage.dll` |
+| Path                                      | Use                                                           |
+| ----------------------------------------- | ------------------------------------------------------------- |
+| `runtime/pokehunter.db`                   | Planned production database; live catches are not implemented |
+| `runtime/sqlite-persistence-test.db`      | Disposable persistent run-counter test                        |
+| `runtime/database-initialization-test.db` | Persistent migration/idempotence test                         |
+| Operating-system temporary directories    | Isolated rejection/repository fixtures; cleanup attempted     |
 
-Reopen Streamer.bot after copying. TimeZoneConverter comes from NuGet restore.
-SQLite has separate managed/native dependencies; use its setup guide. Never copy csproj
-files as libraries. `-Force` does not bypass a DLL lock held by a running process.
+Do not turn a test database into the live database. Ignore databases, journal/WAL companion
+files, runtime records, and backups in Git. None are source files.
 
-## Run manual Streamer.bot checks
+## Planned catch and redemption storage
 
-For each action: edit/save source, build, install changed libraries, paste the complete
-source into Execute C# Code, add that sub-action's references, save/compile, and run.
-Local csproj references do not configure the action editor. Updating source on disk does
-not update pasted code.
+Successful catches are permanent history. Seasonal and National Dex views must derive
+consistent results from those catches; any future ownership tables are transactional
+indexes/projections, not independently maintained competing collections.
 
-Where an older action uses ProjectFolder, set the repository path in the pasted local
-copy. Keep personal paths out of commits and shared exports. CatchOverlayCheck instead
-uses the `pokeHunterProjectRoot` argument described in its dedicated guide.
+| Identity / record   | Planned requirement                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| Seasonal ownership  | Unique `(Twitch user ID, season ID, entry ID)`                                                       |
+| Lifetime uniqueness | Distinct `(Twitch user ID, entry ID)` across seasons                                                 |
+| Catch               | Trainer, season, stable entry, shiny state, UTC time, originating redemption, event/category context |
+| Seasonal progress   | Consecutive fully failed redemptions; success resets, full failure increments once                   |
+| Redemption          | Stable delivery identity, acceptance context, processing outcome; failures also recorded             |
+| Notification        | Saved-catch identity and delivery state; exact schema remains to be designed                         |
 
-| Source in `streamerbot/tests/`   | Required additional references           | Expected coverage                                                                    |
-| -------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------ |
-| `GameConfigurationCheck.cs`      | Core, TimeZoneConverter, Newtonsoft.Json | Game/seasons/events load; one timestamp selects/logs season/event                    |
-| `DatabaseInitializationCheck.cs` | Storage, System.Data.SQLite, System.Data | Existing history preserved; fresh/repeated initialization reaches schema 3           |
-| `DatabaseRejectionCheck.cs`      | Storage, System.Data.SQLite, System.Data | Newer/unrelated database rejected without byte changes                               |
-| `TrainerStorageCheck.cs`         | Storage, System.Data.SQLite, System.Data | Create/read/rename, timestamps, no duplicate trainers, invalid name rejection        |
-| `SeasonStorageCheck.cs`          | Storage, System.Data.SQLite, System.Data | Equivalent registration, conflicts, invalid generations, international IDs, rollback |
-| `SQLitePersistenceCheck.cs`      | System.Data.SQLite, System.Data          | Persistent run counter; see SQLite Setup                                             |
-| `CatchOverlayCheck.cs`           | Newtonsoft.Json, System                  | Test notification; see Catch Overlay                                                 |
+Recatching the same entry in another season adds a catch, not a new lifetime unique entry.
+Normal/shiny entries are separate. Historical snapshot fields and catalogue compatibility
+must be settled alongside catch storage. Shiny protection is session-local, not a persistent
+next-redemption guarantee.
 
-Core, Storage, TimeZoneConverter, and managed SQLite are under Streamer.bot's dlls folder;
-Newtonsoft.Json is in its root. Framework references on the verified setup are:
+The database must enforce at most one catch per redemption, seasonal uniqueness, stable
+redemption uniqueness, and valid trainer/season references. Record result, catch, and
+progress changes atomically. Announce only after commit. A technical failure is not an
+ordinary gameplay failure. See [Architecture](ARCHITECTURE.md) for recovery and concurrency.
 
-```text
-C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Data.dll
-C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.dll
-```
+## Migration and backup policy
 
-Keep these checks manual, not attached to live rewards. Suggested action names are
-`PokéHunter — Database Initialization Check`, etc., matching their source purpose.
+Add a new numbered migration for a schema change; do not rewrite an already-applied
+migration to upgrade existing databases. Update the registry, checks, and this guide.
+Reject unsupported newer databases instead of deleting data to make them fit.
 
-The configuration action returns false without an active season; no active event is
-normal. Selector counts in its log are not Pokémon counts. It does not perform encounters.
+Before live use, implement/document backup and restore, including a restore test. Preserve
+player data, relevant configuration, and catalogue definitions used by catches. Use a
+supported SQLite backup mechanism or close database access before copying files; a live
+main-file-only copy can omit journal/WAL state. Keep another backup outside the streaming PC.
 
-Initialization retains `runtime/database-initialization-test.db`; the basic persistence
-action retains `runtime/sqlite-persistence-test.db`. Other storage fixtures are temporary
-and synthetic, not viewer data. SeasonStorageCheck needs no ProjectFolder. A previously
-upgraded database tests idempotence on later runs, not the original upgrade again.
-Recompile calling actions when public constants such as CurrentSchemaVersion change.
-
-## Source map and boundaries
-
-| Area                        | Responsibilities and limits                                                                                                  |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Configuration root          | Models/loaders/validators, RequiredConfigContractResolver, ExplicitOffsetDateTimeConverter, ConfigurationTimeZone, selectors |
-| `configuration/catalogue/`  | Document models, loader, validator, index                                                                                    |
-| `configuration/encounters/` | General/Event eligibility IDs and category/group candidates                                                                  |
-| `storage/`                  | Initialization, migration registry, trainer/season models and repositories                                                   |
-
-RequiredConfigContractResolver requires configuration properties and rejects nulls.
-Catalogue models instead use explicit JsonProperty attributes because some media and form
-fields intentionally permit null. The catalogue loader reads the file on each call and
-currently accepts `sampleOnly: true`. Index lookups do not read files; returned records
-are deep copies. The runtime still needs to retain the index and manage refreshes.
-
-Eligibility evaluates a supplied instant and resolves active-event references. Categories
-use one requested shiny state, preserve category-specific variants, and omit empty pools.
-They do not inspect ownership, remove completed categories, roll, or save catches.
-See [Data Model](DATA_MODEL.md) for contracts and [Configuration](CONFIGURATION.md) for schedules.
-
-## Editor declarations and formatting
-
-Action files use a unique editor class name under EXTERNAL_EDITOR, while the pasted
-Streamer.bot source uses CPHInline:
-
-```csharp
-#if EXTERNAL_EDITOR
-public class ExampleCheck
-    : Streamer.bot.Plugin.Interface.CPHInlineBase
-#else
-public class CPHInline
-#endif
-```
-
-The Execute declaration is likewise conditional:
-
-```csharp
-#if EXTERNAL_EDITOR
-public new bool Execute()
-#else
-public bool Execute()
-#endif
-```
-
-`new` intentionally hides the inherited editor method and avoids CS0114. Copy the
-conditional declarations into the action; do not define EXTERNAL_EDITOR in Streamer.bot.
-Reusable library classes do not need this pattern.
-
-In VS Code, open a .cs file → Format Document With… → Configure Default Formatter → C#.
-Merge this property into your existing settings object, preserving other settings:
-
-```json
-"[csharp]": {
-  "editor.defaultFormatter": "ms-dotnettools.csharp",
-  "editor.formatOnSave": true
-}
-```
-
-Shift+Alt+F formats manually. Prettier checks do not format or compile C#.
-
-## After changing code
-
-| Change                   | Required follow-up                                                                                        |
-| ------------------------ | --------------------------------------------------------------------------------------------------------- |
-| Core library             | Build; run affected standalone suites; deploy DLL/recompile actions when testing in Streamer.bot          |
-| Storage/migration SQL    | Build; deploy Storage; recompile affected actions; run relevant manual checks                             |
-| Action source            | Build; repaste; compile and run the action                                                                |
-| Standalone checks only   | Build/run their executable; no deployment                                                                 |
-| Game/seasons/events JSON | Run configuration checks; manual configuration action reads files again; no DLL rebuild solely for values |
-| Rarity JSON              | Regenerate merged catalogue; run catalogue checks                                                         |
-
-Automatic live reload is not implemented. Source changes and installed copies can differ;
-always test the version you intend to use.
-
-## Troubleshooting
-
-| Symptom                                                   | Check                                                                                       |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| No dotnet SDK                                             | Install Windows x64 SDK, restart VS Code, run `dotnet --list-sdks`                          |
-| Missing Streamer.bot references                           | Local props path must identify the installation containing DLLs                             |
-| Missing PokeHunter namespace                              | Install and reference the correct Core/Storage DLL; a using statement is not a reference    |
-| Missing SeasonSelector locally                            | Save its source under configuration, use PokeHunter.Configuration, reference Core           |
-| DbConnection/SQLite IDisposable errors                    | Add System.Data.dll in the action editor; managed SQLite alone is insufficient              |
-| Missing System.Net/InvalidDataException in overlay action | Add framework System.dll                                                                    |
-| Native SQLite load failure                                | Check x64 e_sqlite3.dll location in SQLite Setup                                            |
-| Locked DLL                                                | Fully exit Streamer.bot and other instances before replacing                                |
-| PASS after failed build                                   | Old executable ran; use guarded commands above                                              |
-| Configuration usage message                               | Supply all three paths in the documented order                                              |
-| Missing files                                             | ProjectFolder/argument must identify repository root; verify full file extensions           |
-| Invalid timestamp                                         | Include seconds and offset/Z; ensure end follows start                                      |
-| Season gap/overlap                                        | Next start must equal previous end as an instant                                            |
-| No active season/event                                    | Check dates, enabled state, clock, and actual config path; event gaps are valid             |
-| Changes absent in Streamer.bot                            | Build, close, replace DLLs, reopen, update pasted source, compile                           |
-| Empty InlineCode ID                                       | Save/compile the sub-action and resolve compiler errors                                     |
-| CPH editor error                                          | Check EXTERNAL_EDITOR inheritance; reload VS Code if build passes but diagnostics are stale |
+Next storage work is catch/redemption records, ownership/progress constraints, cooldown and
+recovery state, then integration with the encounter engine. Trainer/season foundations do
+not yet implement those features.

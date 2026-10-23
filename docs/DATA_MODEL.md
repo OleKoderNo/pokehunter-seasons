@@ -1,156 +1,190 @@
-# Database
+# Pokémon Data Model
 
-SQLite runs locally through the C# library; no separate database server is required.
-Initialization, trainer profiles, and season registration are implemented and checked
-inside Streamer.bot. Catch storage and redemption processing are still planned.
+This guide owns catalogue identities and structure. For generation commands, see
+[Development](DEVELOPMENT.md); for player records, see [Database](DATABASE.md).
 
-For installation use [SQLite Setup](SQLITE_SETUP.md); for running actions use
-[C# Development](CSHARP_DEVELOPMENT.md#run-manual-streamerbot-checks).
+## Current output
 
-## Schema and initialization
+`data/catalogue/merged-entries.json` combines Generation 1, Halloween families,
+reviewed Ghost forms, Hangry Morpeko, and five ORAS costumes. It contains entries
+and encounter groups with resolved rarity. C# loading and relationship checks exist.
 
-Current schema version: **3**. The storage project is
-`streamerbot/storage/PokeHunter.Storage.csproj`.
+The verified roster has 620 entries (310 normal and 310 shiny) in 277 groups.
+Counts are a snapshot, not constants future catalogues must retain.
 
-| Version | Embedded SQL file                | Recorded name            |
-| ------- | -------------------------------- | ------------------------ |
-| 1       | `001_CreateMigrationHistory.sql` | Create migration history |
-| 2       | `002_CreateTrainers.sql`         | Create trainers          |
-| 3       | `003_CreateSeasons.sql`          | Create seasons           |
+The document remains an intermediate format:
 
-Files live in `streamerbot/storage/migrations/`. The csproj embeds them with explicit
-LogicalName values; the initializer registry determines execution order. Embedding does
-not execute SQL. Rebuild/redeploy Storage after changing migration source.
+```json
+{
+  "schemaVersion": 1,
+  "sampleOnly": true,
+  "scope": "merged-collection-entries",
+  "sources": [],
+  "encounterGroups": [],
+  "entries": []
+}
+```
 
-`DatabaseInitializer.Initialize(databasePath)` requires a full normalized absolute path.
-It creates missing parent directories, opens/creates the database, enables/verifies foreign
-keys, starts an immediate transaction, verifies application marker/version/history, applies
-missing migrations, validates the result, and commits. Pending migrations and history
-updates commit together; failure attempts rollback.
+The empty arrays illustrate shape only; the validator requires populated sources,
+groups, and entries. No separate species/family arrays or release-version metadata
+are produced yet. Earlier `data/pokemon.json` sketches were proposals, not an output contract.
 
-Fresh databases receive 1–3. Supported existing databases receive missing migrations only.
-A valid version-3 database needs no migration; existing history timestamps are preserved.
-Every future connection must enable foreign-key enforcement too.
+## Identity levels
 
-The initializer rejects negative/newer versions, unrelated version-0 databases with
-objects or an existing marker, incorrect initialized markers, and missing/unexpected/
-mismatched history. History checks ordered versions, names, and nonempty timestamps;
-this is not a complete integrity audit.
+| Identity | Meaning                                              | Example                |
+| -------- | ---------------------------------------------------- | ---------------------- |
+| Species  | Underlying species                                   | `pikachu`              |
+| Group    | One weighted Pokémon option in a category            | `pikachu`              |
+| Form     | Form/costume shared by gender and shiny counterparts | `pikachu-libre`        |
+| Entry    | One collectible identity                             | `pikachu:female:shiny` |
 
-## Trainer repository
+Entry IDs follow `<formId>:<gender>:<normal-or-shiny>`. They do not depend on display
+names, media URLs, array positions, or the active season/event. Once catches reference
+an ID, do not rename, reuse, or remove it without a migration/compatibility plan.
+The National Pokédex number identifies a species, not a unique collection entry.
 
-`TrainerRepository` requires an initialized database with the expected marker/current
-version. It does not create databases or migrate them.
+## Collection entry fields
 
-| Column in trainers | Purpose                            |
-| ------------------ | ---------------------------------- |
-| `twitch_user_id`   | Permanent identity and primary key |
-| `login_name`       | Latest saved Twitch login          |
-| `display_name`     | Latest saved display name          |
-| `created_at_utc`   | First saved timestamp              |
-| `updated_at_utc`   | Last profile-change timestamp      |
+Contracts: `scripts/types/catalogue.ts` and
+`streamerbot/configuration/catalogue/CatalogueDocument.cs`.
 
-All columns are non-null and reject empty/ordinary-space-only text. Repository validation
-also rejects missing values, surrounding whitespace, and control characters; it preserves
-capitalization/international text rather than reproducing every Twitch naming rule.
+| Field                              | Meaning                                                 |
+| ---------------------------------- | ------------------------------------------------------- |
+| `id`                               | Permanent collection identity                           |
+| `speciesId`                        | Underlying species slug                                 |
+| `nationalDexNumber`                | Positive National Pokédex number                        |
+| `evolutionChainId`                 | Positive PokéAPI evolution-chain reference              |
+| `isLegendary`, `isMythical`        | Species classifications                                 |
+| `encounterGroupId`                 | Group used before variant selection                     |
+| `formId`                           | Canonical supported form identity                       |
+| `displayName`                      | Species display name                                    |
+| `formName`                         | Reviewed form label, or null                            |
+| `regionalForm`                     | Regional identifier such as `alola`, or null            |
+| `gender`                           | `male`, `female`, `genderless`, or `unspecified`        |
+| `hasGenderDifference`              | Visible gender difference for the supported form        |
+| `isShiny`                          | Normal/shiny state                                      |
+| `isCostume`                        | Costume classification                                  |
+| `eventOnly`                        | Requires eligible active-event inclusion                |
+| `introducedGeneration`             | Form's introduction generation; currently supported 1–9 |
+| `types`                            | One or two distinct supported type slugs in slot order  |
+| `sprite.url`, `sprite.fallbackUrl` | Matching/reference fallback artwork URL, or null        |
+| `cries.latest`, `cries.legacy`     | Cry URLs, or null                                       |
 
-- `FindByTwitchUserId` returns an immutable Trainer snapshot or null if unknown.
-- `SaveProfile` creates or updates names under the same Twitch ID.
-- Unchanged profiles preserve both timestamps. Renames preserve creation time and update
-  the modified time; names do not create a new trainer.
-- Parameterized SQL separates values from instructions. Save lookup/write uses an immediate
-  transaction. Database failures propagate; they are not reported as success or absence.
+The overlay test combines species name and form label for announcements. Do not assume
+`displayName` already includes the form. Null media properties remain present in JSON.
 
-## Season repository
+## Gender and shiny mappings
 
-`seasons` stores identity, display name, UTC boundaries, and registration timestamp.
-`season_generations` stores one row per unlocked generation; its composite primary key
-prevents duplicates. A foreign key requires an existing season and restricts deletion or
-renaming while generation rows reference it.
+- Visible gender differences receive separate male/female entries.
+- Single-gender species/forms retain that gender; genderless species use `genderless`.
+- Mixed-gender forms without a supported difference use `unspecified`, not `genderless`.
+- Reviewed Frillish, Jellicent, and Basculegion gender resources share a canonical form
+  ID; avoid encoding the gender twice in form and entry identity.
+- Species metadata is not sufficient for every costume. The five ORAS costumes are
+  female-only and set `hasGenderDifference: false` for those particular forms.
+- Missing female sprite fields do not decide whether a female identity exists.
 
-`StoredSeason` is an immutable snapshot with a copied read-only generation list.
-`SeasonRepository` requires initialized storage and provides:
+Every included form/gender has both normal and shiny entries, even when officially
+shiny-locked. Counterparts agree on all metadata except `id`, `isShiny`, and `sprite`.
+Missing shiny artwork does not remove the shiny entry or justify presenting normal
+artwork as an accurate shiny image.
 
-- `FindById`: return a season or null.
-- `Register`: insert a new definition or return its equivalent stored record.
+## Encounter groups and rarity
 
-IDs use C# OrdinalIgnoreCase, including international text; original capitalization is
-preserved. This is implemented explicitly rather than relying on SQLite's ASCII-only
-NOCASE behavior. Equivalent registration requires an exact name, equivalent boundary
-instants, and the same generation set regardless of order. It preserves the original
-record and creation time without duplicate rows.
+A generated group contains:
 
-Different names, boundaries, or generations for an existing ID are rejected. There is
-no automatic stored-season update workflow. Schedule continuity belongs to configuration
-validation; the repository checks the individual definition.
+| Field                            | Meaning                                      |
+| -------------------------------- | -------------------------------------------- |
+| `id`                             | ID referenced by entries                     |
+| `speciesId`, `nationalDexNumber` | Shared species identity                      |
+| `entryIds`                       | All member collection IDs                    |
+| `rarityClass`                    | `common`, `uncommon`, `rare`, or `ultraRare` |
 
-Season and generation rows are inserted in one BEGIN IMMEDIATE transaction. A failed
-insert rolls back the whole registration. Configuration chooses the active season;
-storage preserves the history reference. This uses schema 3 without an additional migration.
+Non-costume entries use canonical `formId` as their group. Costumes use `speciesId`.
+Thus regular and Alolan Marowak are separate groups, gendered Basculegion shares one,
+and Pikachu costumes join `pikachu`. Extra variants do not multiply group weight.
 
-## Verified checks and limits
+`config/rarity.json` resolves a default plus exact-ID overrides during merging.
+`game.json` holds numerical weights. Rarity changes do not change collection identity
+or grant eligibility. See [Configuration](CONFIGURATION.md#rarity-assignments).
 
-| Check              | Evidence                                                                                                                                  |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| SQLite persistence | Counter survives reopening and normal Streamer.bot restart                                                                                |
-| Initialization     | History preserved; existing upgrades and fresh/repeated schema-3 initialization; expected columns                                         |
-| Rejection          | Newer/unrelated fixture databases rejected without changed file bytes                                                                     |
-| Trainers           | Create/read across repositories; rename/unchanged timestamps; isolation, no duplicate rows; blank login rejected                          |
-| Seasons            | UTC equivalence; case-insensitive IDs; conflicts/invalid generations rejected; deliberate child-insert failure rolls back; retry succeeds |
+## Families, forms, and events
 
-The persistent test database upgraded from 1→2→3. Later runs test idempotence, not those
-upgrades again. Column checks do not prove every constraint. Concurrent initialization,
-concurrent repository writes, partial migration failure, and all input-validation branches
-have not been exhaustively tested.
+Regular entries use species introduction metadata; reviewed forms use their resolved
+form version-group generation. Gender indexing follows the represented form's generation.
 
-## Database locations
+Family import traverses all source evolution branches, but generates regular entries;
+reviewed form import supplies additional forms separately. Runtime family selectors
+resolve a species slug to `evolutionChainId` and match represented entries. This does
+not prove the catalogue contains every possible member or form of that family.
 
-| Path                                      | Use                                                           |
-| ----------------------------------------- | ------------------------------------------------------------- |
-| `runtime/pokehunter.db`                   | Planned production database; live catches are not implemented |
-| `runtime/sqlite-persistence-test.db`      | Disposable persistent run-counter test                        |
-| `runtime/database-initialization-test.db` | Persistent migration/idempotence test                         |
-| Operating-system temporary directories    | Isolated rejection/repository fixtures; cleanup attempted     |
+Do not store permanent Halloween/Christmas flags on entries. Event configuration
+selects types, families, forms, and explicit costumes. Generation restrictions still
+apply after matching. `eventOnly: false` does not mean universally available.
 
-Do not turn a test database into the live database. Ignore databases, journal/WAL companion
-files, runtime records, and backups in Git. None are source files.
+The costume converter produces ten entries: female normal/shiny for each of the five
+ORAS outfits, introduced in Generation 6, grouped under Pikachu, and event-only.
+Hangry Morpeko has two unspecified entries, its own group, Generation 8, and
+`eventOnly: false`; it still needs an event exception during Season 1.
 
-## Planned catch and redemption storage
+## C# availability structures
 
-Successful catches are permanent history. Seasonal and National Dex views must derive
-consistent results from those catches; any future ownership tables are transactional
-indexes/projections, not independently maintained competing collections.
+| Class                      | Responsibility                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| `CatalogueLoader`          | Read and deserialize the intermediate file; invoke validation                         |
+| `CatalogueValidator`       | Check values, counterparts, groups, and references                                    |
+| `CatalogueIndex`           | Owned copies and exact case-sensitive ID lookups                                      |
+| `EligibleCataloguePool`    | General eligible IDs and an Event subset for one instant                              |
+| `EligibilityPoolBuilder`   | Resolve schedules/selectors and generation restrictions                               |
+| `EncounterCategoryBuilder` | Build populated categories/groups for one shiny state                                 |
+| `WeightedSelector`         | Select a weighted item using a supplied value in [0, 1); does not generate randomness |
 
-| Identity / record   | Planned requirement                                                                                  |
-| ------------------- | ---------------------------------------------------------------------------------------------------- |
-| Seasonal ownership  | Unique `(Twitch user ID, season ID, entry ID)`                                                       |
-| Lifetime uniqueness | Distinct `(Twitch user ID, entry ID)` across seasons                                                 |
-| Catch               | Trainer, season, stable entry, shiny state, UTC time, originating redemption, event/category context |
-| Seasonal progress   | Consecutive fully failed redemptions; success resets, full failure increments once                   |
-| Redemption          | Stable delivery identity, acceptance context, processing outcome; failures also recorded             |
-| Notification        | Saved-catch identity and delivery state; exact schema remains to be designed                         |
+Returned index records are independent copies, including nested lists and media.
+Unknown entry/group lookups return null; unknown group-member requests throw.
+The runtime must retain the index and refresh pools; these classes do not create a
+live cache automatically.
 
-Recatching the same entry in another season adds a catch, not a new lifetime unique entry.
-Normal/shiny entries are separate. Historical snapshot fields and catalogue compatibility
-must be settled alongside catch storage. Shiny protection is session-local, not a persistent
-next-redemption guarantee.
+Category candidates retain eligible entry subsets. An Event category selecting only
+costumes cannot award a regular variant that failed its selectors. An ordinary type
+can include both when independently eligible. Ownership completion and random variant
+selection remain unimplemented.
 
-The database must enforce at most one catch per redemption, seasonal uniqueness, stable
-redemption uniqueness, and valid trainer/season references. Record result, catch, and
-progress changes atomically. Announce only after commit. A technical failure is not an
-ordinary gameplay failure. See [Architecture](ARCHITECTURE.md) for recovery and concurrency.
+## Merge and validation guarantees
 
-## Migration and backup policy
+- Duplicate IDs within a source fail. Identical entries across sources deduplicate.
+- Conflicting copies of an ID fail with source context; file order does not choose a winner.
+- Entries are sorted by dex number then ID; group generation has deterministic ordering.
+- TypeScript validates required/unknown fields, supported values, identity relationships,
+  media-reference structure, and matching normal/shiny counterparts.
+- Group generation rejects conflicting species/dex metadata. Rarity rejects unknown
+  group overrides and unsupported classes.
+- C# validates counterparts, group references, exact membership, supported metadata,
+  and required properties. Its loader rejects unknown properties and trailing content.
+- Active-event resolution rejects absent family-selector species, forms, and costumes.
+  It does not resolve every inactive event or certify complete catalogue coverage.
 
-Add a new numbered migration for a schema change; do not rewrite an already-applied
-migration to upgrade existing databases. Update the registry, checks, and this guide.
-Reject unsupported newer databases instead of deleting data to make them fit.
+Validation is not verification of every Pokémon fact or remote media file. C# and
+TypeScript validators have separate implementations; do not assume identical coercion
+behavior for arbitrary malformed JSON. Use the tested generation workflow.
 
-Before live use, implement/document backup and restore, including a restore test. Preserve
-player data, relevant configuration, and catalogue definitions used by catches. Use a
-supported SQLite backup mechanism or close database access before copying files; a live
-main-file-only copy can omit journal/WAL state. Keep another backup outside the streaming PC.
+## Media and source boundaries
 
-Next storage work is catch/redemption records, ownership/progress constraints, cooldown and
-recovery state, then integration with the encounter engine. Trainer/season foundations do
-not yet implement those features.
+Store references, not embedded image/audio data. Read source URLs instead of guessing
+them. Null means missing; an HTTP(S) reference does not prove reachability or correct
+artwork/audio. Reviewed fallback rules must not substitute the wrong alternate form.
+
+PokéAPI supplies data; the project owns identity, grouping, costume classification,
+rarity, and shiny availability decisions. Ambiguous forms need review before conversion.
+See [PokéAPI](https://pokeapi.co/docs/v2/) for source documentation.
+
+## Player data and future releases
+
+The catalogue contains no viewer IDs, ownership, timestamps, streaks, or redemptions.
+Intended ownership keys are `(viewer, season, entry)` for seasonal uniqueness and
+`(viewer, entry)` for lifetime uniqueness. Recatches across seasons add history, not
+another unique bonus.
+
+For content updates: preserve IDs, validate changed mappings and overlapping sources,
+review rarity, report missing media, and retain definitions needed by historical catches.
+Retiring availability must not destroy history. Release metadata, final packaging,
+controlled deployment, and archival compatibility remain to be implemented.

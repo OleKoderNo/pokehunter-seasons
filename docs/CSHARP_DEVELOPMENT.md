@@ -1,253 +1,254 @@
-# Configuration Guide
+# C# Development
 
-Use this guide to edit settings. [Game Rules](GAME_RULES.md) owns gameplay behavior;
-[Catch Overlay](CATCH_OVERLAY.md) owns overlay settings and preview setup.
+Build, standalone checks, DLL installation, and pasted Streamer.bot actions are separate
+steps. This guide provides the workflow; [Architecture](ARCHITECTURE.md) explains component
+boundaries and [Database](DATABASE.md) owns storage behavior.
 
-## Choose the right file
+## Setup
 
-| File                        | Controls                                                       | How changes are applied today                                 |
-| --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
-| `config/game.json`          | Cost, cooldown, shiny bonuses, category/rarity weights         | Configuration checks read it; live redeem integration remains |
-| `config/seasons.json`       | Explicit season schedule and generation unlocks                | Configuration checks/selectors and eligibility builder        |
-| `config/events.json`        | Event schedule, selectors, generation exceptions, Event weight | Configuration checks/selectors and eligibility builder        |
-| `config/rarity.json`        | Rarity class assigned to each encounter group                  | Rerun `npm run merge:catalogue`                               |
-| `config/catch-overlay.json` | Appearance, animation, audio, queue                            | Refresh the browser source after editing                      |
+Verified environment: Windows x64, .NET SDK 10.0.401, Streamer.bot 1.0.7, target
+.NET Framework 4.8.1, C# 7.3. Installing SDK 10 does not change Streamer.bot's runtime.
+Use Microsoft's C# extension for VS Code and follow [SQLite Setup](SQLITE_SETUP.md).
 
-All current formats use `schemaVersion: 1`. This is a format version, not a season
-number. Do not change it without a documented migration. Editing JSON does not update
-the Twitch reward, install DLLs, or start a live catching action.
+Copy `streamerbot/StreamerBot.local.props.example` to
+`streamerbot/StreamerBot.local.props`, then set the folder containing Streamer.bot.exe:
 
-## Editing safely
+```xml
+<Project>
+  <PropertyGroup>
+    <StreamerBotPath>C:\Tools\Streamer.bot</StreamerBotPath>
+  </PropertyGroup>
+</Project>
+```
 
-Use standard JSON: double-quoted property names, unquoted numbers/booleans, decimal
-points, no comments, and no trailing commas. Preserve required properties even when a
-selector list is empty. Unknown or missing required configuration properties are rejected.
+Use your actual path without surrounding quotes. The local file is ignored; commit the
+example only. Run the following commands from the repository root.
 
-Bonuses use decimals: `0.05` is 5%; `0.1` is 10%. Keep a reviewable Git diff and validate
-after changes. Do not hand-edit generated catalogues or cached API responses.
+## Projects and build
 
-## Game settings
+| Project                                            | Purpose                                                                            |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `streamerbot/PokeHunter.StreamerBot.csproj`        | Editor/API references and compilation of action source; references Core/Storage    |
+| `streamerbot/configuration/PokeHunter.Core.csproj` | Configuration, schedules, catalogue, eligibility, categories, weighted selection   |
+| `streamerbot/storage/PokeHunter.Storage.csproj`    | SQLite initialization, embedded migration SQL, repositories                        |
+| `tests/configuration/ConfigurationChecks.csproj`   | Standalone configuration checks                                                    |
+| `tests/catalogue/CatalogueChecks.csproj`           | Standalone catalogue, lookup, eligibility, category, and weighted-selection checks |
 
-Paths below are relative to the root of `game.json`.
+```powershell
+dotnet build streamerbot/PokeHunter.StreamerBot.csproj
+```
 
-| Property                                             | Initial value | Meaning                                                                                        |
-| ---------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------- |
-| `redemption.cost`                                    | 500           | Price for the entire redemption, including extra attempts                                      |
-| `redemption.perUserCooldownSeconds`                  | 60            | Per-viewer delay from accepted redemption                                                      |
-| `shiny.baseOddsDenominator`                          | 8192          | Base probability is 1 divided by this positive integer                                         |
-| `shiny.collectionBonus.uniqueEntriesPerMilestone`    | 50            | Combined lifetime unique normal + shiny milestone size                                         |
-| `shiny.collectionBonus.bonusPerUniqueEntryMilestone` | 0.1           | Additive bonus per complete combined milestone                                                 |
-| `shiny.collectionBonus.uniqueShiniesPerMilestone`    | 10            | Additional unique-shiny milestone size                                                         |
-| `shiny.collectionBonus.bonusPerShinyMilestone`       | 0.05          | Additive bonus per complete shiny milestone                                                    |
-| `encounters.categoryWeights.type`                    | 1             | Weight of each populated ordinary type category                                                |
-| `encounters.categoryWeights.event`                   | 4             | Existing game-level setting; current builder uses the active event's required `categoryWeight` |
+This builds the referenced libraries but does not run checks or install anything.
+Core/Storage source is excluded from direct compilation by the action project to avoid
+duplicate assemblies. Do not install PokeHunter.StreamerBot.dll; actions use pasted source.
+Generated bin/obj directories stay ignored.
 
-Milestone sizes must be positive integers. To disable a bonus, set its bonus value to
-zero, not its milestone size. Repeated catches of an existing lifetime entry earn no
-new unique bonus. See [Shiny progression](GAME_RULES.md#shiny-progression) for the formula.
+## Standalone checks
 
-`shiny.subscriberMultipliers` contains `none: 1`, `prime: 2`, `tier1: 2`, `tier2: 2.5`,
-`tier3: 3.5`. Apply only the applicable tier after adding collection bonuses. Setting
-all multipliers to 1 removes subscription differences.
+Build immediately before running. The guards below prevent accidentally executing an
+old binary after a failed build.
 
-`encounters.rarityWeights` contains `common: 10`, `uncommon: 6`, `rare: 3`, `ultraRare: 1`.
-Each group receives its class weight; there is no separate rarity-class roll.
-Category and rarity weights must be finite and greater than zero.
+### Configuration
 
-With 18 type categories of weight 1 and Event weight 4, Event has 4/22 of the category
-roll. This is neither 4% nor a guaranteed fourfold increase for each event Pokémon.
-Actual group odds depend on the selected category and its members.
+```powershell
+dotnet build tests/configuration/ConfigurationChecks.csproj
+if ($LASTEXITCODE -eq 0) {
+    & ".\tests\configuration\bin\Debug\net481\ConfigurationChecks.exe" ".\config\game.json" ".\config\seasons.json" ".\config\events.json"
+}
+```
 
-The configured cost must match the Twitch reward manually until synchronization exists.
-The reward description must explain per-user cooldown and no automatic refunds.
+Three arguments, in order: game, seasons, events. Checks include real-file loading,
+invalid milestone size, explicit offsets, season continuity/boundaries, event gaps and
+disabled/overlapping schedules, invalid event settings, and time-zone conversions.
 
-## Seasons: customize in seven steps
+### Catalogue and encounter preparation
 
-1. Open `config/seasons.json` and choose your schedule. Annual, quarterly, and other
-   lengths are supported; duration comes from the dates.
-2. Set a resolvable `timeZone`, such as `Europe/Oslo`, for local-time display.
-3. Give every season a unique permanent `id` and a readable `name`.
-4. Set `startsAt` and `endsAtExclusive`, including seconds and an explicit offset or `Z`.
-5. Set the complete `unlockedGenerations` list. Nothing is inherited automatically.
-6. Start the next season at exactly the previous season's exclusive end.
-7. Run the configuration checks linked below before using the schedule.
+Generate the merged catalogue first using [Development](DEVELOPMENT.md).
 
-| Field                 | Rule                                                                                |
-| --------------------- | ----------------------------------------------------------------------------------- |
-| `schemaVersion`       | 1                                                                                   |
-| `timeZone`            | Must resolve; it does not rewrite timestamp offsets                                 |
-| `seasons`             | Nonempty list, no gaps or overlaps between consecutive seasons                      |
-| `id`                  | Nonempty, no surrounding whitespace, unique ignoring capitalization                 |
-| `name`                | Nonempty label, no surrounding whitespace                                           |
-| `startsAt`            | Inclusive start                                                                     |
-| `endsAtExclusive`     | Exclusive end, later than start                                                     |
-| `unlockedGenerations` | Nonempty, distinct positive integers; use generations represented in your catalogue |
+```powershell
+dotnet build tests/catalogue/CatalogueChecks.csproj
+if ($LASTEXITCODE -eq 0) {
+    & ".\tests\catalogue\bin\Debug\net481\win-x64\CatalogueChecks.exe" ".\data\catalogue\merged-entries.json"
+}
+```
 
-`[1, 2]` unlocks both generations; `[3]` unlocks only Generation 3. Forms use their own
-introduction generation, and costumes still require events. Configuration validation
-checks positive generation numbers, not complete catalogue coverage.
+One argument: catalogue path. Checks include real-file loading, rejected schemas/properties,
+counterparts, rarity and broken references, duplicate IDs, missing group membership,
+nullable media, independent index copies, eligibility, category construction, and
+deterministic weighted selection.
 
-### Understand timestamps
+Weighted-selection checks cover interval boundaries, proportional weights, single-item
+pools, invalid inputs, and input preservation. They do not test a random-number generator
+or execute a complete encounter.
 
-A season is active when `startsAt <= instant < endsAtExclusive`. To include March 31,
-end at midnight April 1, not at `23:59:59` on March 31.
+Eligibility/category checks use fixed test schedules, not every event in config/events.json.
+
+Both programs return 0 on success and 1 on failure. Invalid-input fixtures use temporary
+copies; original JSON and player databases are not modified. Cleanup is attempted and
+failures are reported. Standalone projects reference the actual Core library and copy
+Newtonsoft.Json beside their executables (`Private=true`). No Streamer.bot restart or
+DLL deployment is needed just to run these checks.
+
+### Preserve regression coverage
+
+Check classes are explicitly called, not automatically discovered. Call a new group's
+Run method from the appropriate runner. Existing checks must remain active when refactored.
+Use fresh fixtures and change only the behavior under test. Expected failures must match
+the intended error, not accept any exception. Print PASS only after assertions succeed.
+
+Configuration helpers include CheckAssert, TestJsonFiles, and EventTestFixtures.
+Catalogue Program calls CatalogueIndexChecks, EligibilityChecks, and
+WeightedSelectionChecks; EligibilityChecks calls EncounterCategoryChecks. These checks cover selected behaviors, not every validation branch.
+
+## Install shared libraries
+
+After a successful build, fully exit Streamer.bot (including its tray instance), then copy:
+
+| Repository build output                                            | Streamer.bot destination      |
+| ------------------------------------------------------------------ | ----------------------------- |
+| `streamerbot/configuration/bin/Debug/net481/PokeHunter.Core.dll`   | `dlls/PokeHunter.Core.dll`    |
+| `streamerbot/configuration/bin/Debug/net481/TimeZoneConverter.dll` | `dlls/TimeZoneConverter.dll`  |
+| `streamerbot/storage/bin/Debug/net481/PokeHunter.Storage.dll`      | `dlls/PokeHunter.Storage.dll` |
+
+Reopen Streamer.bot after copying. TimeZoneConverter comes from NuGet restore.
+SQLite has separate managed/native dependencies; use its setup guide. Never copy csproj
+files as libraries. `-Force` does not bypass a DLL lock held by a running process.
+
+## Run manual Streamer.bot checks
+
+For each action: edit/save source, build, install changed libraries, paste the complete
+source into Execute C# Code, add that sub-action's references, save/compile, and run.
+Local csproj references do not configure the action editor. Updating source on disk does
+not update pasted code.
+
+Where an older action uses ProjectFolder, set the repository path in the pasted local
+copy. Keep personal paths out of commits and shared exports. CatchOverlayCheck instead
+uses the `pokeHunterProjectRoot` argument described in its dedicated guide.
+
+| Source in `streamerbot/tests/`   | Required additional references           | Expected coverage                                                                    |
+| -------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| `GameConfigurationCheck.cs`      | Core, TimeZoneConverter, Newtonsoft.Json | Game/seasons/events load; one timestamp selects/logs season/event                    |
+| `DatabaseInitializationCheck.cs` | Storage, System.Data.SQLite, System.Data | Existing history preserved; fresh/repeated initialization reaches schema 3           |
+| `DatabaseRejectionCheck.cs`      | Storage, System.Data.SQLite, System.Data | Newer/unrelated database rejected without byte changes                               |
+| `TrainerStorageCheck.cs`         | Storage, System.Data.SQLite, System.Data | Create/read/rename, timestamps, no duplicate trainers, invalid name rejection        |
+| `SeasonStorageCheck.cs`          | Storage, System.Data.SQLite, System.Data | Equivalent registration, conflicts, invalid generations, international IDs, rollback |
+| `SQLitePersistenceCheck.cs`      | System.Data.SQLite, System.Data          | Persistent run counter; see SQLite Setup                                             |
+| `CatchOverlayCheck.cs`           | Newtonsoft.Json, System                  | Test notification; see Catch Overlay                                                 |
+
+Core, Storage, TimeZoneConverter, and managed SQLite are under Streamer.bot's dlls folder;
+Newtonsoft.Json is in its root. Framework references on the verified setup are:
 
 ```text
-2027-01-01T00:00:00+01:00
-2026-12-31T23:00:00Z
+C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Data.dll
+C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.dll
 ```
 
-These represent the same instant. Seconds and an explicit offset are required; up to
-seven fractional-second digits are supported. `2027-01-01T00:00:00` is rejected.
+Keep these checks manual, not attached to live rewards. Suggested action names are
+`PokéHunter — Database Initialization Check`, etc., matching their source purpose.
 
-The named zone controls display, while explicit offsets control boundaries. The
-validator permits equivalent UTC/offset representations; it does not require the
-written offset to match the named zone. When entering local clock times, choose the
-correct offset for that date. Oslo is +01:00 in winter and +02:00 in summer.
+The configuration action returns false without an active season; no active event is
+normal. Selector counts in its log are not Pokémon counts. It does not perform encounters.
 
-### Example: two quarterly seasons
+Initialization retains `runtime/database-initialization-test.db`; the basic persistence
+action retains `runtime/sqlite-persistence-test.db`. Other storage fixtures are temporary
+and synthetic, not viewer data. SeasonStorageCheck needs no ProjectFolder. A previously
+upgraded database tests idempotence on later runs, not the original upgrade again.
+Recompile calling actions when public constants such as CurrentSchemaVersion change.
 
-This is an alternative complete example, not a replacement for the project's default
-annual schedule unless you deliberately choose it.
+## Source map and boundaries
+
+| Area                        | Responsibilities and limits                                                                                                  |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Configuration root          | Models/loaders/validators, RequiredConfigContractResolver, ExplicitOffsetDateTimeConverter, ConfigurationTimeZone, selectors |
+| `configuration/catalogue/`  | Document models, loader, validator, index                                                                                    |
+| `configuration/encounters/` | General/Event eligibility IDs, category/group candidates, and weighted selection                                             |
+| `storage/`                  | Initialization, migration registry, trainer/season models and repositories                                                   |
+
+RequiredConfigContractResolver requires configuration properties and rejects nulls.
+Catalogue models instead use explicit JsonProperty attributes because some media and form
+fields intentionally permit null. The catalogue loader reads the file on each call and
+currently accepts `sampleOnly: true`. Index lookups do not read files; returned records
+are deep copies. The runtime still needs to retain the index and manage refreshes.
+
+Eligibility evaluates a supplied instant and resolves active-event references. Categories
+use one requested shiny state, preserve category-specific variants, and omit empty pools.
+The weighted selector chooses an item using a supplied number in [0, 1); it does not
+generate randomness. Ownership filtering, a complete encounter roll, and catch saving
+remain separate work.
+See [Data Model](DATA_MODEL.md) for contracts and [Configuration](CONFIGURATION.md) for schedules.
+
+## Editor declarations and formatting
+
+Action files use a unique editor class name under EXTERNAL_EDITOR, while the pasted
+Streamer.bot source uses CPHInline:
+
+```csharp
+#if EXTERNAL_EDITOR
+public class ExampleCheck
+    : Streamer.bot.Plugin.Interface.CPHInlineBase
+#else
+public class CPHInline
+#endif
+```
+
+The Execute declaration is likewise conditional:
+
+```csharp
+#if EXTERNAL_EDITOR
+public new bool Execute()
+#else
+public bool Execute()
+#endif
+```
+
+`new` intentionally hides the inherited editor method and avoids CS0114. Copy the
+conditional declarations into the action; do not define EXTERNAL_EDITOR in Streamer.bot.
+Reusable library classes do not need this pattern.
+
+In VS Code, open a .cs file → Format Document With… → Configure Default Formatter → C#.
+Merge this property into your existing settings object, preserving other settings:
 
 ```json
-{
-  "schemaVersion": 1,
-  "timeZone": "Europe/Oslo",
-  "seasons": [
-    {
-      "id": "season-1",
-      "name": "The Kanto Adventure",
-      "startsAt": "2027-01-01T00:00:00+01:00",
-      "endsAtExclusive": "2027-04-01T00:00:00+02:00",
-      "unlockedGenerations": [1]
-    },
-    {
-      "id": "season-2",
-      "name": "Journey to Johto",
-      "startsAt": "2027-04-01T00:00:00+02:00",
-      "endsAtExclusive": "2027-07-01T00:00:00+02:00",
-      "unlockedGenerations": [1, 2]
-    }
-  ]
+"[csharp]": {
+  "editor.defaultFormatter": "ms-dotnettools.csharp",
+  "editor.formatOnSave": true
 }
 ```
 
-Add a third season before July 1 to continue availability. The selector returns null
-outside the configured schedule; it never invents a season or reuses an expired one.
-The project's initial annual schedule is listed in [Game Rules](GAME_RULES.md#seasons).
+Shift+Alt+F formats manually. Prettier checks do not format or compile C#.
 
-### Changing registered seasons
+## After changing code
 
-Before registration you can edit names, dates, and generations. After registration,
-`SeasonRepository.Register` rejects changed names, boundaries, or generation sets for
-an existing ID. A display-name change does not change identity, but it is not currently
-an automatic supported update to the stored record.
+| Change                   | Required follow-up                                                                                        |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Core library             | Build; run affected standalone suites; deploy DLL/recompile actions when testing in Streamer.bot          |
+| Storage/migration SQL    | Build; deploy Storage; recompile affected actions; run relevant manual checks                             |
+| Action source            | Build; repaste; compile and run the action                                                                |
+| Standalone checks only   | Build/run their executable; no deployment                                                                 |
+| Game/seasons/events JSON | Run configuration checks; manual configuration action reads files again; no DLL rebuild solely for values |
+| Rarity JSON              | Regenerate merged catalogue; run catalogue checks                                                         |
 
-Do not rename/reuse historical IDs or delete archives. An explicit editing/migration
-workflow is required for already-stored changes; it is not implemented. Back up player
-data and configuration before future live schedule changes. Editing JSON does not move
-saved catches. Acceptance time will bind a redemption to its season; cooldown is independent.
+Automatic live reload is not implemented. Source changes and installed copies can differ;
+always test the version you intend to use.
 
-## Events: customize in six steps
+## Troubleshooting
 
-1. Open `config/events.json`; copy an event for a new occurrence and give it a new ID.
-2. Set name, enabled state, inclusive start, and exclusive end.
-3. Edit all four arrays in `include`; unused arrays remain `[]`.
-4. Choose generation exceptions and Legendary/Mythical restrictions.
-5. Set the required positive `categoryWeight` (Halloween uses 4).
-6. Validate configuration and ensure selected content exists in the generated catalogue.
-
-| Field                                   | Rule / effect                                                                       |
-| --------------------------------------- | ----------------------------------------------------------------------------------- |
-| `timeZone`                              | Resolvable display zone; timestamps determine instants                              |
-| `events`                                | May be empty; gaps are permitted                                                    |
-| `id`, `name`                            | Stable unique occurrence ID and readable label                                      |
-| `enabled`                               | False prevents selection, but does not bypass field validation                      |
-| `startsAt`, `endsAtExclusive`           | Same timestamp rules as seasons                                                     |
-| `categoryWeight`                        | Required finite positive Event category weight; no omission fallback is implemented |
-| `allowLockedGenerations`                | Allow matching entries from locked form-introduction generations                    |
-| `requireUnlockedGenerationForLegendary` | Keep matching locked Legendary entries out when true                                |
-| `requireUnlockedGenerationForMythical`  | Same restriction for Mythical entries                                               |
-
-Enabled events cannot overlap. Adjacent events may share an end/start instant. No active
-event is normal; no active season prevents pool construction. Events do not repeat annually
-automatically. Keep historical IDs stable and use a new ID for each occurrence.
-
-The project's generation policy is `true` for all three flags. Turning a classification
-restriction off permits that classification from locked generations only if
-`allowLockedGenerations` is also true. These flags do not remove normally unlocked entries.
-
-### Select the roster
-
-| Selector                    | Matches                                                              | Example              |
-| --------------------------- | -------------------------------------------------------------------- | -------------------- |
-| `include.types`             | Non-costume forms with any listed type                               | `["ghost"]`          |
-| `include.evolutionFamilies` | Represented members/forms sharing the named species' evolution chain | `["cubone"]`         |
-| `include.forms`             | Exact non-costume form IDs                                           | `["morpeko-hangry"]` |
-| `include.costumes`          | Exact costume form IDs only                                          | `["pikachu-libre"]`  |
-
-All four arrays must exist; at least one selector is required. Use supported lowercase
-types and lowercase hyphenated IDs. Duplicates within one list are rejected. Matching
-multiple selectors does not add tickets. There is no exclusion list: removing one selector
-does not exclude a Pokémon still matching another.
-
-Type matching alone does not include nonmatching evolution relatives. Family matching
-includes represented branches and forms but never automatically includes costumes.
-Selectors cover all supported genders and shiny states. Single-gender costumes stay
-single-gender; the five ORAS outfits are female-only.
-
-Active-event resolution rejects missing family-selector species, unknown forms, and
-unknown costumes. It does not verify every inactive event or prove that every family
-member exists. New content must be imported; editing a selector cannot create entries.
-Current importer scripts still include Halloween-specific paths and reviewed mappings.
-
-For the roster, see [Initial Halloween roster](GAME_RULES.md#initial-halloween-roster).
-A roster change only needs eligibility rebuilding when the entries already exist;
-missing forms/species need generation, merging, and deployment too.
-
-## Rarity assignments
-
-`rarity.json` assigns classes; `game.json` assigns their numerical weights.
-The initial custom balance is 62 common, 91 uncommon, 91 rare, and 33 ultraRare groups.
-These counts are a roster snapshot and the assignments are not official encounter rates.
-
-To edit:
-
-1. Find the exact group `id` in `data/catalogue/merged-entries.json`.
-2. Add/change that ID in `config/rarity.json` under `overrides`.
-3. Choose `common`, `uncommon`, `rare`, or `ultraRare` (case-sensitive).
-4. Run `npm run merge:catalogue` and review its summary.
-
-Example configuration shape:
-
-```json
-{
-  "schemaVersion": 1,
-  "defaultClass": "common",
-  "overrides": {
-    "pikachu": "uncommon",
-    "marowak-alola": "rare"
-  }
-}
-```
-
-Keep the project's other assignments when making an individual change. Unlisted groups,
-including newly added groups, inherit the default. Unknown IDs/classes/properties fail
-merging, including overrides for groups absent from the generated roster.
-
-An override affects the whole group, including its costume members; it does not change
-shiny odds, equal variant weights, or event eligibility. Commit rarity.json, not generated
-catalogues. Review new groups before accepting their default rarity.
-
-## Validate and apply changes
-
-- Game/seasons/events: run the [standalone configuration checks](CSHARP_DEVELOPMENT.md#standalone-checks).
-- Rarity: rerun `npm run merge:catalogue`, then the catalogue checks.
-- Catalogue or eligibility code: run the catalogue suite; it includes fixed event fixtures,
-  not an exhaustive check of every event in your current events.json.
-- Overlay: refresh the browser source and use its [manual checklist](CATCH_OVERLAY.md#verification-and-limits).
-
-The configuration action reads game/seasons/events on each execution. Changing JSON
-alone does not require a new DLL, but the receiving component must read it again.
-Automatic production reload and live reward enforcement remain unimplemented.
+| Symptom                                                   | Check                                                                                        |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| No dotnet SDK                                             | Install Windows x64 SDK, restart VS Code, run `dotnet --list-sdks`                           |
+| Missing Streamer.bot references                           | Local props path must identify the installation containing DLLs                              |
+| Missing PokeHunter namespace                              | Install and reference the correct Core/Storage DLL; a using statement is not a reference     |
+| Missing SeasonSelector locally                            | Save its source under configuration, use PokeHunter.Configuration, reference Core            |
+| DbConnection/SQLite IDisposable errors                    | Add System.Data.dll in the action editor; managed SQLite alone is insufficient               |
+| Missing System.Net/InvalidDataException in overlay action | Add framework System.dll for System.Net; include `using System.IO;` for InvalidDataException |
+| Native SQLite load failure                                | Check x64 e_sqlite3.dll location in SQLite Setup                                             |
+| Locked DLL                                                | Fully exit Streamer.bot and other instances before replacing                                 |
+| PASS after failed build                                   | Old executable ran; use guarded commands above                                               |
+| Configuration usage message                               | Supply all three paths in the documented order                                               |
+| Missing files                                             | ProjectFolder/argument must identify repository root; verify full file extensions            |
+| Invalid timestamp                                         | Include seconds and offset/Z; ensure end follows start                                       |
+| Season gap/overlap                                        | Next start must equal previous end as an instant                                             |
+| No active season/event                                    | Check dates, enabled state, clock, and actual config path; event gaps are valid              |
+| Changes absent in Streamer.bot                            | Build, close, replace DLLs, reopen, update pasted source, compile                            |
+| Empty InlineCode ID                                       | Save/compile the sub-action and resolve compiler errors                                      |
+| CPH editor error                                          | Check EXTERNAL_EDITOR inheritance; reload VS Code if build passes but diagnostics are stale  |

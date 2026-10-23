@@ -1,182 +1,253 @@
-# Catch Overlay
+# Configuration Guide
 
-The working preview displays KapteinOle's avatar/name, a catch message, a rising/bobbing
-Pokémon sprite, and one cry. Streamer.bot posts to a local Node server; browser sources
-receive notifications and display them sequentially.
+Use this guide to edit settings. [Game Rules](GAME_RULES.md) owns gameplay behavior;
+[Catch Overlay](CATCH_OVERLAY.md) owns overlay settings and preview setup.
 
-**Test-only:** the endpoint accepts KapteinOle previews, not production catches. Records
-in `runtime/overlay-tests.jsonl` do not grant Pokémon, create trainers, change bonuses,
-or update either Dex. The initial Streamer.bot-to-OBS path is verified; use the checklist
-below for other behavior rather than assuming every case has been manually verified.
+## Choose the right file
 
-## Start the server
+| File                        | Controls                                                       | How changes are applied today                                 |
+| --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| `config/game.json`          | Cost, cooldown, shiny bonuses, category/rarity weights         | Configuration checks read it; live redeem integration remains |
+| `config/seasons.json`       | Explicit season schedule and generation unlocks                | Configuration checks/selectors and eligibility builder        |
+| `config/events.json`        | Event schedule, selectors, generation exceptions, Event weight | Configuration checks/selectors and eligibility builder        |
+| `config/rarity.json`        | Rarity class assigned to each encounter group                  | Rerun `npm run merge:catalogue`                               |
+| `config/catch-overlay.json` | Appearance, animation, audio, queue                            | Refresh the browser source after editing                      |
 
-Requirements: Node.js 24+, installed dependencies (`npm ci`), configured Streamer.bot,
-OBS Browser Source, and `data/catalogue/merged-entries.json`. Twitch lookup and remote
-media require internet. Generate the catalogue using [Development](DEVELOPMENT.md).
+All current formats use `schemaVersion: 1`. This is a format version, not a season
+number. Do not change it without a documented migration. Editing JSON does not update
+the Twitch reward, install DLLs, or start a live catching action.
 
-```powershell
-npm run overlay:serve
-```
+## Editing safely
 
-This builds Node tools/browser code and serves `http://127.0.0.1:8787/` locally.
-Keep the terminal open; Ctrl+C stops it. The server serves fixed overlay routes, not a
-general repository directory. Separate commands are `npm run typecheck:overlay` and
-`npm run build:overlay`.
+Use standard JSON: double-quoted property names, unquoted numbers/booleans, decimal
+points, no comments, and no trailing commas. Preserve required properties even when a
+selector list is empty. Unknown or missing required configuration properties are rejected.
 
-## Add OBS sources
+Bonuses use decimals: `0.05` is 5%; `0.1` is 10%. Keep a reviewable Git diff and validate
+after changes. Do not hand-edit generated catalogues or cached API responses.
 
-| Setting                           | Landscape                                | Portrait                                         |
-| --------------------------------- | ---------------------------------------- | ------------------------------------------------ |
-| URL                               | `http://127.0.0.1:8787/?debug=1`         | `http://127.0.0.1:8787/?layout=portrait&audio=0` |
-| Width × height                    | Match layout config; currently 1980×1080 | 1080×1920                                        |
-| Control audio via OBS             | Enabled                                  | Enabled; this instance is muted by audio=0       |
-| Shutdown when not visible         | Disabled                                 | Disabled                                         |
-| Refresh when scene becomes active | Disabled                                 | Disabled                                         |
+## Game settings
 
-Suggested name: **PokéHunter Catch Overlay**. The debug label should say
-`PokéHunter connected`; remove debug=1 after setup. Scale/position the source in OBS.
+Paths below are relative to the root of `game.json`.
 
-Portrait mode centers content, limits width and font sizes, and keeps the configured top
-position. It does not configure Twitch dual-format output; configure the vertical scene
-and stream output separately, and check placement against mobile controls/chat.
+| Property                                             | Initial value | Meaning                                                                                        |
+| ---------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------- |
+| `redemption.cost`                                    | 500           | Price for the entire redemption, including extra attempts                                      |
+| `redemption.perUserCooldownSeconds`                  | 60            | Per-viewer delay from accepted redemption                                                      |
+| `shiny.baseOddsDenominator`                          | 8192          | Base probability is 1 divided by this positive integer                                         |
+| `shiny.collectionBonus.uniqueEntriesPerMilestone`    | 50            | Combined lifetime unique normal + shiny milestone size                                         |
+| `shiny.collectionBonus.bonusPerUniqueEntryMilestone` | 0.1           | Additive bonus per complete combined milestone                                                 |
+| `shiny.collectionBonus.uniqueShiniesPerMilestone`    | 10            | Additional unique-shiny milestone size                                                         |
+| `shiny.collectionBonus.bonusPerShinyMilestone`       | 0.05          | Additive bonus per complete shiny milestone                                                    |
+| `encounters.categoryWeights.type`                    | 1             | Weight of each populated ordinary type category                                                |
+| `encounters.categoryWeights.event`                   | 4             | Existing game-level setting; current builder uses the active event's required `categoryWeight` |
 
-Each browser has an independent queue/loading timeline; sources are not frame-synchronized.
-Mute extra instances and route the audible source appropriately to avoid duplicate cries.
-A hidden but connected source still consumes notifications.
+Milestone sizes must be positive integers. To disable a bonus, set its bonus value to
+zero, not its milestone size. Repeated catches of an existing lifetime entry earn no
+new unique bonus. See [Shiny progression](GAME_RULES.md#shiny-progression) for the formula.
 
-## Create the Streamer.bot preview action
+`shiny.subscriberMultipliers` contains `none: 1`, `prime: 2`, `tier1: 2`, `tier2: 2.5`,
+`tier3: 3.5`. Apply only the applicable tier after adding collection bonuses. Setting
+all multipliers to 1 removes subscription differences.
 
-Create **PokéHunter — Catch Overlay Check** with these sub-actions in order:
+`encounters.rarityWeights` contains `common: 10`, `uncommon: 6`, `rare: 3`, `ultraRare: 1`.
+Each group receives its class weight; there is no separate rarity-class roll.
+Category and rarity weights must be finite and greater than zero.
 
-1. **Twitch → User → Get User Info for Target**, login `kapteinole`.
-2. **Set Argument**, name `pokeHunterProjectRoot`, value your absolute repository folder.
-3. **Core → C# → Execute C# Code**, containing the full
-   `streamerbot/tests/CatchOverlayCheck.cs` source.
+With 18 type categories of weight 1 and Event weight 4, Event has 4/22 of the category
+roll. This is neither 4% nor a guaranteed fourfold increase for each event Pokémon.
+Actual group odds depend on the selected category and its members.
 
-Use KapteinOle's real lookup identity/avatar, not random viewers or fabricated IDs.
-Keep the local path in the action argument, not committed source; sanitize shared exports.
+The configured cost must match the Twitch reward manually until synchronization exists.
+The reward description must explain per-user cooldown and no automatic refunds.
 
-Add Newtonsoft.Json.dll from Streamer.bot's root and the framework System.dll reference:
+## Seasons: customize in seven steps
+
+1. Open `config/seasons.json` and choose your schedule. Annual, quarterly, and other
+   lengths are supported; duration comes from the dates.
+2. Set a resolvable `timeZone`, such as `Europe/Oslo`, for local-time display.
+3. Give every season a unique permanent `id` and a readable `name`.
+4. Set `startsAt` and `endsAtExclusive`, including seconds and an explicit offset or `Z`.
+5. Set the complete `unlockedGenerations` list. Nothing is inherited automatically.
+6. Start the next season at exactly the previous season's exclusive end.
+7. Run the configuration checks linked below before using the schedule.
+
+| Field                 | Rule                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------- |
+| `schemaVersion`       | 1                                                                                   |
+| `timeZone`            | Must resolve; it does not rewrite timestamp offsets                                 |
+| `seasons`             | Nonempty list, no gaps or overlaps between consecutive seasons                      |
+| `id`                  | Nonempty, no surrounding whitespace, unique ignoring capitalization                 |
+| `name`                | Nonempty label, no surrounding whitespace                                           |
+| `startsAt`            | Inclusive start                                                                     |
+| `endsAtExclusive`     | Exclusive end, later than start                                                     |
+| `unlockedGenerations` | Nonempty, distinct positive integers; use generations represented in your catalogue |
+
+`[1, 2]` unlocks both generations; `[3]` unlocks only Generation 3. Forms use their own
+introduction generation, and costumes still require events. Configuration validation
+checks positive generation numbers, not complete catalogue coverage.
+
+### Understand timestamps
+
+A season is active when `startsAt <= instant < endsAtExclusive`. To include March 31,
+end at midnight April 1, not at `23:59:59` on March 31.
 
 ```text
-C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.dll
+2027-01-01T00:00:00+01:00
+2026-12-31T23:00:00Z
 ```
 
-Save/compile and run the **whole action**, so lookup and argument sub-actions execute first.
-A successful local C# build does not configure these references or update pasted code.
+These represent the same instant. Seconds and an explicit offset are required; up to
+seven fractional-second digits are supported. `2027-01-01T00:00:00` is rejected.
 
-The selected entry must exist in the merged catalogue. For previews edit the action's
-existing entryId assignment, then repaste and compile:
+The named zone controls display, while explicit offsets control boundaries. The
+validator permits equivalent UTC/offset representations; it does not require the
+written offset to match the named zone. When entering local clock times, choose the
+correct offset for that date. Oslo is +01:00 in winter and +02:00 in summer.
 
-```csharp
-string entryId = "pikachu:male:normal";
+### Example: two quarterly seasons
+
+This is an alternative complete example, not a replacement for the project's default
+annual schedule unless you deliberately choose it.
+
+```json
+{
+  "schemaVersion": 1,
+  "timeZone": "Europe/Oslo",
+  "seasons": [
+    {
+      "id": "season-1",
+      "name": "The Kanto Adventure",
+      "startsAt": "2027-01-01T00:00:00+01:00",
+      "endsAtExclusive": "2027-04-01T00:00:00+02:00",
+      "unlockedGenerations": [1]
+    },
+    {
+      "id": "season-2",
+      "name": "Journey to Johto",
+      "startsAt": "2027-04-01T00:00:00+02:00",
+      "endsAtExclusive": "2027-07-01T00:00:00+02:00",
+      "unlockedGenerations": [1, 2]
+    }
+  ]
+}
 ```
 
-Use `pikachu:male:shiny` for a shiny preview. Do not add a second declaration.
+Add a third season before July 1 to continue availability. The selector returns null
+outside the configured schedule; it never invents a season or reuses an expired one.
+The project's initial annual schedule is listed in [Game Rules](GAME_RULES.md#seasons).
 
-## Appearance and settings
+### Changing registered seasons
 
-Edit `config/catch-overlay.json` and refresh the Browser Source. The current preview reads
-configuration at page load; source-code changes also require rebuilding/restarting the
-server and refreshing the page. See the JSON for exact current values.
+Before registration you can edit names, dates, and generations. After registration,
+`SeasonRepository.Register` rejects changed names, boundaries, or generation sets for
+an existing ID. A display-name change does not change identity, but it is not currently
+an automatic supported update to the stored record.
 
-Top-level `schemaVersion` is 1. Top-level `enabled: false` disables the preview visuals
-and audio; it does not implement any gameplay toggle. Re-enabling does not replay missed tests.
+Do not rename/reuse historical IDs or delete archives. An explicit editing/migration
+workflow is required for already-stored changes; it is not implemented. Back up player
+data and configuration before future live schedule changes. Editing JSON does not move
+saved catches. Acceptance time will bind a redemption to its season; cooldown is independent.
 
-### Layout, text, avatar, and sprite
+## Events: customize in six steps
 
-| Property under its section                                | Effect                                                                     |
-| --------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `layout.canvasWidth`, `canvasHeight`                      | Landscape design size; match OBS source dimensions                         |
-| `layout.positionX`, `positionY`                           | Notification horizontal center and top edge                                |
-| `layout.width`                                            | Notification width/text wrapping                                           |
-| `layout.textGapPixels`, `spriteGapPixels`                 | Gaps between identity/message and message/sprite                           |
-| `text.usernameTemplate`                                   | Viewer text, normally `{displayName}`                                      |
-| `text.catchTemplate`, `shinyCatchTemplate`                | Message using `{pokemonName}`; retain explicit shiny wording               |
-| `text.fontFamily`                                         | Available CSS font/fallback list; does not download fonts                  |
-| `text.usernameFontSizePixels`, `messageFontSizePixels`    | Text sizes; portrait mode caps them                                        |
-| `text.usernameColor`, `messageColor`, `shinyMessageColor` | Text colors                                                                |
-| `text.shadowColor`, `shadowBlurPixels`                    | Text shadow appearance; zero blur removes blur, not necessarily the shadow |
-| `avatar.enabled`, `sizePixels`, `gapPixels`               | Profile-image visibility, size, and spacing                                |
-| `sprite.sizePixels`                                       | Aspect-preserving square display box                                       |
-| `sprite.pixelated`                                        | Crisp pixel scaling versus smooth scaling                                  |
-| `sprite.fallbackLabel`                                    | Label shown if the sprite cannot load                                      |
+1. Open `config/events.json`; copy an event for a new occurrence and give it a new ID.
+2. Set name, enabled state, inclusive start, and exclusive end.
+3. Edit all four arrays in `include`; unused arrays remain `[]`.
+4. Choose generation exceptions and Legendary/Mythical restrictions.
+5. Set the required positive `categoryWeight` (Halloween uses 4).
+6. Validate configuration and ensure selected content exists in the generated catalogue.
 
-Templates are displayed as plain text, not HTML. Keep placeholder spelling exact.
-Use readable colors (for example #FFFFFF) and check long names/wrapping visually.
-For 1920×1080 instead of the current 1980×1080, set canvasWidth to 1920 and positionX
-to 960, preserve other properties, and match OBS dimensions.
+| Field                                   | Rule / effect                                                                       |
+| --------------------------------------- | ----------------------------------------------------------------------------------- |
+| `timeZone`                              | Resolvable display zone; timestamps determine instants                              |
+| `events`                                | May be empty; gaps are permitted                                                    |
+| `id`, `name`                            | Stable unique occurrence ID and readable label                                      |
+| `enabled`                               | False prevents selection, but does not bypass field validation                      |
+| `startsAt`, `endsAtExclusive`           | Same timestamp rules as seasons                                                     |
+| `categoryWeight`                        | Required finite positive Event category weight; no omission fallback is implemented |
+| `allowLockedGenerations`                | Allow matching entries from locked form-introduction generations                    |
+| `requireUnlockedGenerationForLegendary` | Keep matching locked Legendary entries out when true                                |
+| `requireUnlockedGenerationForMythical`  | Same restriction for Mythical entries                                               |
 
-### Animation, audio, and queue
+Enabled events cannot overlap. Adjacent events may share an end/start instant. No active
+event is normal; no active season prevents pool construction. Events do not repeat annually
+automatically. Keep historical IDs stable and use a new ID for each occurrence.
 
-| Property                                                            | Initial timing / meaning                                    |
-| ------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `animation.usernameEnterMilliseconds`                               | 250; identity entrance duration                             |
-| `animation.messageDelayMilliseconds`                                | 250; delay before message entrance                          |
-| `animation.spriteDelayMilliseconds`                                 | 500; delay before sprite rise and cry attempt               |
-| `animation.spriteRiseMilliseconds`                                  | 600; rise duration                                          |
-| `animation.spriteRiseDistancePixels`                                | 120; distance below resting position, not the canvas bottom |
-| `animation.holdMilliseconds`                                        | 4000 after entrance animations complete                     |
-| `animation.exitMilliseconds`                                        | 400; exit fade                                              |
-| `animation.bobEnabled`, `bobDistancePixels`, `bobCycleMilliseconds` | true, 6, 1200; gentle static-sprite movement                |
-| `audio.enabled`                                                     | Enable/disable cries while retaining visuals                |
-| `audio.volume`                                                      | 0–1; initially 0.5; OBS routing can change audible volume   |
-| `audio.preferredCry`, `fallbackCry`                                 | `latest` / `legacy`, either key allowed                     |
-| `audio.maxPlaybackMilliseconds`                                     | 5000; also stop audio when notification ends                |
-| `queue.gapMilliseconds`                                             | 300 between completed notifications                         |
+The project's generation policy is `true` for all three flags. Turning a classification
+restriction off permits that classification from locked generations only if
+`allowLockedGenerations` is also true. These flags do not remove normally unlocked entries.
 
-Media loading has a bounded wait before reveal. Message/sprite delays are relative to
-notification reveal, and hold starts after all entrance animations finish. With current
-timings the visual sequence is about 5.5 seconds plus 0.3-second gap, excluding media waits.
-Keep delays ordered if you want identity → message → sprite. Increase bobCycleMilliseconds
-for slower motion and reduce bobDistancePixels for subtler motion. Text stays stationary.
+### Select the roster
 
-Missing avatars are hidden. Missing sprites show the label. Preferred cry is used when
-present; fallback is selected only when the preferred reference is null. Playback failure
-continues silently; the current implementation does not retry the alternate cry on failure.
-A URL's presence does not prove its media works.
+| Selector                    | Matches                                                              | Example              |
+| --------------------------- | -------------------------------------------------------------------- | -------------------- |
+| `include.types`             | Non-costume forms with any listed type                               | `["ghost"]`          |
+| `include.evolutionFamilies` | Represented members/forms sharing the named species' evolution chain | `["cubone"]`         |
+| `include.forms`             | Exact non-costume form IDs                                           | `["morpeko-hangry"]` |
+| `include.costumes`          | Exact costume form IDs only                                          | `["pikachu-libre"]`  |
 
-## Verification and limits
+All four arrays must exist; at least one selector is required. Use supported lowercase
+types and lowercase hyphenated IDs. Duplicates within one list are rejected. Matching
+multiple selectors does not add tickets. There is no exclusion list: removing one selector
+does not exclude a Pokémon still matching another.
 
-| Manual check         | Expected result                                     |
-| -------------------- | --------------------------------------------------- |
-| Normal preview       | Correct avatar/name/message/sprite, rise and bob    |
-| Three rapid previews | Sequential notifications                            |
-| Shiny preview        | Shiny wording/color/artwork                         |
-| Audio disabled       | Animation continues silently                        |
-| Portrait             | Readable, unclipped, clear of mobile controls       |
-| Test log             | KapteinOle's real ID and isTest: true               |
-| Missing image        | Label/hidden avatar; queue continues                |
-| Server restart       | Reconnection; missed notifications are not replayed |
+Type matching alone does not include nonmatching evolution relatives. Family matching
+includes represented branches and forms but never automatically includes costumes.
+Selectors cover all supported genders and shiny states. Single-gender costumes stay
+single-gender; the five ORAS outfits are female-only.
 
-Accepted tests append one JSON object per line to runtime/overlay-tests.jsonl. Keep this
-local data ignored. The endpoint rejects a request without a connected overlay client.
-Acceptance means logged/broadcast, not acknowledged display or successful audio.
+Active-event resolution rejects missing family-selector species, unknown forms, and
+unknown costumes. It does not verify every inactive event or prove that every family
+member exists. New content must be imported; editing a selector cannot create entries.
+Current importer scripts still include Halloween-specific paths and reviewed mappings.
 
-Queues are browser-memory only; refresh/close loses pending notifications. There is no
-replay, production delivery deduplication, or durable outbox. Logs are not a delivery queue.
-Production catches must be committed independently of presentation and must never be
-rerolled because the overlay failed. That integration remains future work.
+For the roster, see [Initial Halloween roster](GAME_RULES.md#initial-halloween-roster).
+A roster change only needs eligibility rebuilding when the entries already exist;
+missing forms/species need generation, merging, and deployment too.
 
-## Files and troubleshooting
+## Rarity assignments
 
-| File                                        | Responsibility                              |
-| ------------------------------------------- | ------------------------------------------- |
-| `overlay/index.html`, `overlay/overlay.css` | Document/layout                             |
-| `overlay/src/overlay.ts`                    | Browser queue, animation, media, connection |
-| `overlay/tsconfig.json`                     | Browser build; DOM library and `types: []`  |
-| `scripts/serve-overlay.ts`                  | Local server, endpoint, test log            |
-| `streamerbot/tests/CatchOverlayCheck.cs`    | Manual sender                               |
+`rarity.json` assigns classes; `game.json` assigns their numerical weights.
+The initial custom balance is 62 common, 91 uncommon, 91 rare, and 33 ultraRare groups.
+These counts are a roster snapshot and the assignments are not official encounter rates.
 
-Do not commit overlay/dist. Root TypeScript uses Node types; the browser config excludes
-automatic Node globals to prevent undici-types errors. ESLint applies environment-appropriate globals.
+To edit:
 
-| Symptom                                   | Fix                                                                     |
-| ----------------------------------------- | ----------------------------------------------------------------------- |
-| System.Net / InvalidDataException missing | Add framework System.dll in the action References tab                   |
-| undici-types errors                       | Keep browser `types: []` and root `types: ["node"]`                     |
-| No overlay connected                      | Start server, open source, inspect debug=1 label                        |
-| User lookup fails                         | Run whole action; verify target kapteinole and sub-action order         |
-| Duplicate cry                             | Mute extra browser instances; check monitoring/desktop-audio routing    |
-| Changes absent                            | Rebuild changed TS, restart server, refresh browser; repaste changed C# |
+1. Find the exact group `id` in `data/catalogue/merged-entries.json`.
+2. Add/change that ID in `config/rarity.json` under `overrides`.
+3. Choose `common`, `uncommon`, `rare`, or `ultraRare` (case-sensitive).
+4. Run `npm run merge:catalogue` and review its summary.
+
+Example configuration shape:
+
+```json
+{
+  "schemaVersion": 1,
+  "defaultClass": "common",
+  "overrides": {
+    "pikachu": "uncommon",
+    "marowak-alola": "rare"
+  }
+}
+```
+
+Keep the project's other assignments when making an individual change. Unlisted groups,
+including newly added groups, inherit the default. Unknown IDs/classes/properties fail
+merging, including overrides for groups absent from the generated roster.
+
+An override affects the whole group, including its costume members; it does not change
+shiny odds, equal variant weights, or event eligibility. Commit rarity.json, not generated
+catalogues. Review new groups before accepting their default rarity.
+
+## Validate and apply changes
+
+- Game/seasons/events: run the [standalone configuration checks](CSHARP_DEVELOPMENT.md#standalone-checks).
+- Rarity: rerun `npm run merge:catalogue`, then the catalogue checks.
+- Catalogue or eligibility code: run the catalogue suite; it includes fixed event fixtures,
+  not an exhaustive check of every event in your current events.json.
+- Overlay: refresh the browser source and use its [manual checklist](CATCH_OVERLAY.md#verification-and-limits).
+
+The configuration action reads game/seasons/events on each execution. Changing JSON
+alone does not require a new DLL, but the receiving component must read it again.
+Automatic production reload and live reward enforcement remain unimplemented.
