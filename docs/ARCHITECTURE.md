@@ -5,30 +5,30 @@ For current project-wide status, see the [README](../README.md).
 
 ## Components
 
-| Component | Responsibility | Current state |
-| --- | --- | --- |
-| TypeScript tools | Fetch/cache source data and generate reviewed collection entries and groups | Implemented for the current roster |
-| JSON configuration | Editable game settings, schedules, rosters, rarity, and overlay appearance | Loaders/checks available; live reload not integrated |
-| PokeHunter.Core | Configuration, catalogue validation/lookups, eligibility, category construction, deterministic weighted selection | Implemented; random-number source and session logic remain |
-| PokeHunter.Storage | Local SQLite migrations and repositories | Trainer and season storage implemented; catches/redemptions remain |
-| Streamer.bot actions | Host integration and manual checks | Manual checks implemented; live redemption action remains |
-| Node overlay server and browser page | Relay and display catch previews | Test-only KapteinOle endpoint implemented |
-| Website | Collection showcase and leaderboard | Deferred |
+| Component                            | Responsibility                                                                                                    | Current state                                                      |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| TypeScript tools                     | Fetch/cache source data and generate reviewed collection entries and groups                                       | Implemented for the current roster                                 |
+| JSON configuration                   | Editable game settings, schedules, rosters, rarity, and overlay appearance                                        | Loaders/checks available; live reload not integrated               |
+| PokeHunter.Core                      | Configuration, catalogue validation/lookups, eligibility, category construction, deterministic weighted selection | Implemented; random-number source and session logic remain         |
+| PokeHunter.Storage                   | Local SQLite migrations and repositories                                                                          | Trainer and season storage implemented; catches/redemptions remain |
+| Streamer.bot actions                 | Host integration and manual checks                                                                                | Manual checks implemented; live redemption action remains          |
+| Node overlay server and browser page | Relay and display catch previews                                                                                  | Test-only KapteinOle endpoint implemented                          |
+| Website                              | Collection showcase and leaderboard                                                                               | Deferred                                                           |
 
 The importer runs during development/content updates, not during each redemption.
 The overlay server must remain running while its browser sources are used.
 
 ## Data locations
 
-| Location | Contents | Commit? |
-| --- | --- | --- |
-| `config/`, `scripts/`, `overlay/src/`, `streamerbot/`, `tests/`, `docs/` | Handwritten configuration, code, and docs | Yes, except local/build files |
-| `data/samples/` | Existing tracked generated examples | Yes; regenerate, do not hand-edit |
-| `data/catalogue/` | Generated catalogues and review reports | No |
-| `cache/`, `.cache/` | Downloaded source responses | No |
-| `dist/`, `overlay/dist/`, `bin/`, `obj/`, `node_modules/` | Dependencies/build output | No |
-| `runtime/`, `backups/` | Local records, databases, and backups | No |
-| `streamerbot/StreamerBot.local.props` | Personal installation path | No |
+| Location                                                                 | Contents                                  | Commit?                           |
+| ------------------------------------------------------------------------ | ----------------------------------------- | --------------------------------- |
+| `config/`, `scripts/`, `overlay/src/`, `streamerbot/`, `tests/`, `docs/` | Handwritten configuration, code, and docs | Yes, except local/build files     |
+| `data/samples/`                                                          | Existing tracked generated examples       | Yes; regenerate, do not hand-edit |
+| `data/catalogue/`                                                        | Generated catalogues and review reports   | No                                |
+| `cache/`, `.cache/`                                                      | Downloaded source responses               | No                                |
+| `dist/`, `overlay/dist/`, `bin/`, `obj/`, `node_modules/`                | Dependencies/build output                 | No                                |
+| `runtime/`, `backups/`                                                   | Local records, databases, and backups     | No                                |
+| `streamerbot/StreamerBot.local.props`                                    | Personal installation path                | No                                |
 
 The current merged file is `data/catalogue/merged-entries.json`. It remains
 marked `sampleOnly: true`; no final production packaging contract is established.

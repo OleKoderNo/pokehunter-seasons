@@ -36,16 +36,16 @@ These rules are not all implemented yet.
 
 ## Start here
 
-| I want to… | Guide |
-| --- | --- |
-| Generate Pokémon data or run TypeScript checks | [Development](docs/DEVELOPMENT.md) |
+| I want to…                                        | Guide                                        |
+| ------------------------------------------------- | -------------------------------------------- |
+| Generate Pokémon data or run TypeScript checks    | [Development](docs/DEVELOPMENT.md)           |
 | Build C#, run checks, or update Streamer.bot DLLs | [C# Development](docs/CSHARP_DEVELOPMENT.md) |
-| Install SQLite dependencies | [SQLite Setup](docs/SQLITE_SETUP.md) |
-| Preview the overlay in OBS | [Catch Overlay](docs/CATCH_OVERLAY.md) |
-| Customize seasons, events, odds, or rarity | [Configuration](docs/CONFIGURATION.md) |
-| Understand how the pieces fit together | [Architecture](docs/ARCHITECTURE.md) |
-| Understand collection IDs and catalogue records | [Data Model](docs/DATA_MODEL.md) |
-| Understand migrations and player storage | [Database](docs/DATABASE.md) |
+| Install SQLite dependencies                       | [SQLite Setup](docs/SQLITE_SETUP.md)         |
+| Preview the overlay in OBS                        | [Catch Overlay](docs/CATCH_OVERLAY.md)       |
+| Customize seasons, events, odds, or rarity        | [Configuration](docs/CONFIGURATION.md)       |
+| Understand how the pieces fit together            | [Architecture](docs/ARCHITECTURE.md)         |
+| Understand collection IDs and catalogue records   | [Data Model](docs/DATA_MODEL.md)             |
+| Understand migrations and player storage          | [Database](docs/DATABASE.md)                 |
 
 Development uses Node.js 24+, npm, and Windows C# tooling. The verified C# setup
 uses .NET SDK 10.0.401, targets .NET Framework 4.8.1, and runs in Streamer.bot 1.0.7 x64.

@@ -26,13 +26,13 @@ general repository directory. Separate commands are `npm run typecheck:overlay` 
 
 ## Add OBS sources
 
-| Setting | Landscape | Portrait |
-| --- | --- | --- |
-| URL | `http://127.0.0.1:8787/?debug=1` | `http://127.0.0.1:8787/?layout=portrait&audio=0` |
-| Width × height | Match layout config; currently 1980×1080 | 1080×1920 |
-| Control audio via OBS | Enabled | Enabled; this instance is muted by audio=0 |
-| Shutdown when not visible | Disabled | Disabled |
-| Refresh when scene becomes active | Disabled | Disabled |
+| Setting                           | Landscape                                | Portrait                                         |
+| --------------------------------- | ---------------------------------------- | ------------------------------------------------ |
+| URL                               | `http://127.0.0.1:8787/?debug=1`         | `http://127.0.0.1:8787/?layout=portrait&audio=0` |
+| Width × height                    | Match layout config; currently 1980×1080 | 1080×1920                                        |
+| Control audio via OBS             | Enabled                                  | Enabled; this instance is muted by audio=0       |
+| Shutdown when not visible         | Disabled                                 | Disabled                                         |
+| Refresh when scene becomes active | Disabled                                 | Disabled                                         |
 
 Suggested name: **PokéHunter Catch Overlay**. The debug label should say
 `PokéHunter connected`; remove debug=1 after setup. Scale/position the source in OBS.
@@ -86,22 +86,22 @@ and audio; it does not implement any gameplay toggle. Re-enabling does not repla
 
 ### Layout, text, avatar, and sprite
 
-| Property under its section | Effect |
-| --- | --- |
-| `layout.canvasWidth`, `canvasHeight` | Landscape design size; match OBS source dimensions |
-| `layout.positionX`, `positionY` | Notification horizontal center and top edge |
-| `layout.width` | Notification width/text wrapping |
-| `layout.textGapPixels`, `spriteGapPixels` | Gaps between identity/message and message/sprite |
-| `text.usernameTemplate` | Viewer text, normally `{displayName}` |
-| `text.catchTemplate`, `shinyCatchTemplate` | Message using `{pokemonName}`; retain explicit shiny wording |
-| `text.fontFamily` | Available CSS font/fallback list; does not download fonts |
-| `text.usernameFontSizePixels`, `messageFontSizePixels` | Text sizes; portrait mode caps them |
-| `text.usernameColor`, `messageColor`, `shinyMessageColor` | Text colors |
-| `text.shadowColor`, `shadowBlurPixels` | Text shadow appearance; zero blur removes blur, not necessarily the shadow |
-| `avatar.enabled`, `sizePixels`, `gapPixels` | Profile-image visibility, size, and spacing |
-| `sprite.sizePixels` | Aspect-preserving square display box |
-| `sprite.pixelated` | Crisp pixel scaling versus smooth scaling |
-| `sprite.fallbackLabel` | Label shown if the sprite cannot load |
+| Property under its section                                | Effect                                                                     |
+| --------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `layout.canvasWidth`, `canvasHeight`                      | Landscape design size; match OBS source dimensions                         |
+| `layout.positionX`, `positionY`                           | Notification horizontal center and top edge                                |
+| `layout.width`                                            | Notification width/text wrapping                                           |
+| `layout.textGapPixels`, `spriteGapPixels`                 | Gaps between identity/message and message/sprite                           |
+| `text.usernameTemplate`                                   | Viewer text, normally `{displayName}`                                      |
+| `text.catchTemplate`, `shinyCatchTemplate`                | Message using `{pokemonName}`; retain explicit shiny wording               |
+| `text.fontFamily`                                         | Available CSS font/fallback list; does not download fonts                  |
+| `text.usernameFontSizePixels`, `messageFontSizePixels`    | Text sizes; portrait mode caps them                                        |
+| `text.usernameColor`, `messageColor`, `shinyMessageColor` | Text colors                                                                |
+| `text.shadowColor`, `shadowBlurPixels`                    | Text shadow appearance; zero blur removes blur, not necessarily the shadow |
+| `avatar.enabled`, `sizePixels`, `gapPixels`               | Profile-image visibility, size, and spacing                                |
+| `sprite.sizePixels`                                       | Aspect-preserving square display box                                       |
+| `sprite.pixelated`                                        | Crisp pixel scaling versus smooth scaling                                  |
+| `sprite.fallbackLabel`                                    | Label shown if the sprite cannot load                                      |
 
 Templates are displayed as plain text, not HTML. Keep placeholder spelling exact.
 Use readable colors (for example #FFFFFF) and check long names/wrapping visually.
@@ -110,21 +110,21 @@ to 960, preserve other properties, and match OBS dimensions.
 
 ### Animation, audio, and queue
 
-| Property | Initial timing / meaning |
-| --- | --- |
-| `animation.usernameEnterMilliseconds` | 250; identity entrance duration |
-| `animation.messageDelayMilliseconds` | 250; delay before message entrance |
-| `animation.spriteDelayMilliseconds` | 500; delay before sprite rise and cry attempt |
-| `animation.spriteRiseMilliseconds` | 600; rise duration |
-| `animation.spriteRiseDistancePixels` | 120; distance below resting position, not the canvas bottom |
-| `animation.holdMilliseconds` | 4000 after entrance animations complete |
-| `animation.exitMilliseconds` | 400; exit fade |
-| `animation.bobEnabled`, `bobDistancePixels`, `bobCycleMilliseconds` | true, 6, 1200; gentle static-sprite movement |
-| `audio.enabled` | Enable/disable cries while retaining visuals |
-| `audio.volume` | 0–1; initially 0.5; OBS routing can change audible volume |
-| `audio.preferredCry`, `fallbackCry` | `latest` / `legacy`, either key allowed |
-| `audio.maxPlaybackMilliseconds` | 5000; also stop audio when notification ends |
-| `queue.gapMilliseconds` | 300 between completed notifications |
+| Property                                                            | Initial timing / meaning                                    |
+| ------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `animation.usernameEnterMilliseconds`                               | 250; identity entrance duration                             |
+| `animation.messageDelayMilliseconds`                                | 250; delay before message entrance                          |
+| `animation.spriteDelayMilliseconds`                                 | 500; delay before sprite rise and cry attempt               |
+| `animation.spriteRiseMilliseconds`                                  | 600; rise duration                                          |
+| `animation.spriteRiseDistancePixels`                                | 120; distance below resting position, not the canvas bottom |
+| `animation.holdMilliseconds`                                        | 4000 after entrance animations complete                     |
+| `animation.exitMilliseconds`                                        | 400; exit fade                                              |
+| `animation.bobEnabled`, `bobDistancePixels`, `bobCycleMilliseconds` | true, 6, 1200; gentle static-sprite movement                |
+| `audio.enabled`                                                     | Enable/disable cries while retaining visuals                |
+| `audio.volume`                                                      | 0–1; initially 0.5; OBS routing can change audible volume   |
+| `audio.preferredCry`, `fallbackCry`                                 | `latest` / `legacy`, either key allowed                     |
+| `audio.maxPlaybackMilliseconds`                                     | 5000; also stop audio when notification ends                |
+| `queue.gapMilliseconds`                                             | 300 between completed notifications                         |
 
 Media loading has a bounded wait before reveal. Message/sprite delays are relative to
 notification reveal, and hold starts after all entrance animations finish. With current
@@ -139,16 +139,16 @@ A URL's presence does not prove its media works.
 
 ## Verification and limits
 
-| Manual check | Expected result |
-| --- | --- |
-| Normal preview | Correct avatar/name/message/sprite, rise and bob |
-| Three rapid previews | Sequential notifications |
-| Shiny preview | Shiny wording/color/artwork |
-| Audio disabled | Animation continues silently |
-| Portrait | Readable, unclipped, clear of mobile controls |
-| Test log | KapteinOle's real ID and isTest: true |
-| Missing image | Label/hidden avatar; queue continues |
-| Server restart | Reconnection; missed notifications are not replayed |
+| Manual check         | Expected result                                     |
+| -------------------- | --------------------------------------------------- |
+| Normal preview       | Correct avatar/name/message/sprite, rise and bob    |
+| Three rapid previews | Sequential notifications                            |
+| Shiny preview        | Shiny wording/color/artwork                         |
+| Audio disabled       | Animation continues silently                        |
+| Portrait             | Readable, unclipped, clear of mobile controls       |
+| Test log             | KapteinOle's real ID and isTest: true               |
+| Missing image        | Label/hidden avatar; queue continues                |
+| Server restart       | Reconnection; missed notifications are not replayed |
 
 Accepted tests append one JSON object per line to runtime/overlay-tests.jsonl. Keep this
 local data ignored. The endpoint rejects a request without a connected overlay client.
@@ -161,23 +161,23 @@ rerolled because the overlay failed. That integration remains future work.
 
 ## Files and troubleshooting
 
-| File | Responsibility |
-| --- | --- |
-| `overlay/index.html`, `overlay/overlay.css` | Document/layout |
-| `overlay/src/overlay.ts` | Browser queue, animation, media, connection |
-| `overlay/tsconfig.json` | Browser build; DOM library and `types: []` |
-| `scripts/serve-overlay.ts` | Local server, endpoint, test log |
-| `streamerbot/tests/CatchOverlayCheck.cs` | Manual sender |
+| File                                        | Responsibility                              |
+| ------------------------------------------- | ------------------------------------------- |
+| `overlay/index.html`, `overlay/overlay.css` | Document/layout                             |
+| `overlay/src/overlay.ts`                    | Browser queue, animation, media, connection |
+| `overlay/tsconfig.json`                     | Browser build; DOM library and `types: []`  |
+| `scripts/serve-overlay.ts`                  | Local server, endpoint, test log            |
+| `streamerbot/tests/CatchOverlayCheck.cs`    | Manual sender                               |
 
 Do not commit overlay/dist. Root TypeScript uses Node types; the browser config excludes
 automatic Node globals to prevent undici-types errors. ESLint applies environment-appropriate globals.
 
-| Symptom | Fix |
-| --- | --- |
-| System.Net missing | Add framework System.dll in the action References tab |
-| InvalidDataException missing | Include `using System.IO;` in the action source |
-| undici-types errors | Keep browser `types: []` and root `types: ["node"]` |
-| No overlay connected | Start server, open source, inspect debug=1 label |
-| User lookup fails | Run whole action; verify target kapteinole and sub-action order |
-| Duplicate cry | Mute extra browser instances; check monitoring/desktop-audio routing |
-| Changes absent | Rebuild changed TS, restart server, refresh browser; repaste changed C# |
+| Symptom                      | Fix                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| System.Net missing           | Add framework System.dll in the action References tab                   |
+| InvalidDataException missing | Include `using System.IO;` in the action source                         |
+| undici-types errors          | Keep browser `types: []` and root `types: ["node"]`                     |
+| No overlay connected         | Start server, open source, inspect debug=1 label                        |
+| User lookup fails            | Run whole action; verify target kapteinole and sub-action order         |
+| Duplicate cry                | Mute extra browser instances; check monitoring/desktop-audio routing    |
+| Changes absent               | Rebuild changed TS, restart server, refresh browser; repaste changed C# |
