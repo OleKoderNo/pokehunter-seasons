@@ -350,16 +350,25 @@ Run:
 npm run test:tools
 ```
 
-The command compiles the TypeScript tools and runs
-`dist/tests/catalogue.test.js` and `dist/tests/event-variants.test.js`
-using Node's built-in test runner.
+The command compiles the TypeScript tools and runs these files using
+Node's built-in test runner:
+
+- `dist/tests/catalogue.test.js`
+- `dist/tests/event-variants.test.js`
+- `dist/tests/merge-collection-entries.test.js`
 
 Test source is stored in `scripts/tests/catalogue.test.ts`.
 Fresh synthetic fixtures come from
 `scripts/tests/fixtures/catalogue-fixtures.ts`.
 
-The tests do not download API resources, read the cache, or write
-catalogues. Fixture media URLs are placeholders and are never requested.
+The merge tests verify that identical entries across sources are
+deduplicated, conflicting copies are rejected, duplicate IDs within one
+source are rejected, output ordering is stable, and input entries are
+not mutated.
+
+The merge function accepts validated entries. JSON file validation and
+the command that combines generated catalogue files are not implemented
+yet.
 
 Coverage includes:
 

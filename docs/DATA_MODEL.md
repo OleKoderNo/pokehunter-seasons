@@ -619,6 +619,31 @@ The additional shiny milestone bonus uses unique shiny entries.
 
 Historical catches must continue to resolve after a season or event ends.
 
+## Merging intermediate entries
+
+The merge function combines already validated collection entries.
+
+Its rules are:
+
+- Different entry IDs are retained.
+- Identical entries appearing in different sources are kept once.
+- Conflicting data for the same entry ID causes an error.
+- Duplicate entry IDs within a single source cause an error.
+
+Conflict messages identify the entry and both source names.
+File order must never silently determine which conflicting copy wins.
+
+Comparison includes all entry fields, including nested media references.
+Differences must be reviewed and corrected upstream.
+
+Merged entries are sorted by National Pokédex number and then entry ID.
+The function returns independent copies without modifying its inputs.
+
+The merge function does not validate external JSON, create missing
+counterparts, or decide season and event eligibility.
+
+Integration with generated catalogue files remains pending.
+
 ## Updating the catalogue
 
 When generating a new catalogue release:
