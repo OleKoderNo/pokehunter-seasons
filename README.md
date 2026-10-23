@@ -1,102 +1,66 @@
 # PokéHunter Seasons
 
-A seasonal Pokémon collection game for Streamer.bot, where viewers use Twitch channel points to encounter and catch Pokémon.
+A seasonal Pokémon collection game for Streamer.bot, built for **KapteinOle**
+and designed to be customizable by other creators.
 
-Originally created for the KapteinOle community, the project is also intended to help other creators bring a customizable Pokémon catching game to their streams.
+Viewers will spend channel points to catch Pokémon, build a fresh Seasonal Dex,
+and preserve their collection history in a lifetime National Dex.
 
-## Project status
+## Status
 
-**In development.**
+**In development — not ready for live channel-point redemptions.**
 
-This project is being built from scratch. A sample Pokémon data importer
-and a SQLite persistence test are working. The gameplay features below
-are planned and are not yet implemented.
+Working foundations:
 
-## Planned features
+- Game, season, and event configuration with validation and schedule selection.
+- SQLite migrations, trainer profiles, and persistent season registration.
+- Generation 1 and Halloween catalogue generation, merging, and rarity assignments.
+- C# catalogue loading, protected lookups, eligibility, and weighted category construction.
+- An OBS catch-overlay preview with avatar, sprite animation, cry, and notification queue.
 
-### Seasonal and National Pokédex
+Still to build: random encounter selection, viewer ownership filtering, catch
+storage, shiny/retry processing, cooldown enforcement, and live redemption integration.
+The website/leaderboard and December content are later work.
 
-- Annual seasons that gradually unlock additional Pokémon generations.
-- A fresh Seasonal Pokédex at the beginning of each season.
-- Archived seasons that preserve previous catches.
-- A permanent National Pokédex tracking unique entries and total catches across seasons.
-- Separate entries for normal and shiny Pokémon, supported forms, costumes, and visible gender differences.
+## The game
 
-### Encounters and retries
+- **500 channel points**, a **60-second per-viewer cooldown**, and no automatic refunds.
+- At most one catch per redemption; fully failed redemptions earn another attempt next time.
+- Separate collectibles for normal/shiny states, supported forms, costumes, and visible genders.
+- Annual seasons by default; old catches remain in the National Dex.
+- Base shiny odds of **1 in 8,192**, improved by unique collection milestones and subscription tier.
+- Themed events expand the roster and add a weighted Event category.
 
-- Channel-point redemptions with a maximum of one successful catch per redemption.
-- Weighted Pokémon types and encounter classes.
-- Duplicate encounters that can cause an attempt to fail.
-- An additional attempt on the next redemption for each consecutive failed redemption.
-- Removal of completed types from the relevant normal or shiny encounter pool.
-- A configurable cooldown for each viewer.
-- No refunds for unsuccessful encounters.
+See [Game Rules](docs/GAME_RULES.md) for the complete intended behavior.
+These rules are not all implemented yet.
 
-### Shiny progression
+## Start here
 
-- A base shiny probability of 1 in 8,192.
-- Increased shiny probability through unique National Pokédex milestones.
-- An additional bonus for collecting unique shiny entries.
-- Configurable subscriber-tier multipliers.
-- Shiny protection that keeps remaining attempts shiny after a shiny encounter within the same redemption.
+| I want to… | Guide |
+| --- | --- |
+| Generate Pokémon data or run TypeScript checks | [Development](docs/DEVELOPMENT.md) |
+| Build C#, run checks, or update Streamer.bot DLLs | [C# Development](docs/CSHARP_DEVELOPMENT.md) |
+| Install SQLite dependencies | [SQLite Setup](docs/SQLITE_SETUP.md) |
+| Preview the overlay in OBS | [Catch Overlay](docs/CATCH_OVERLAY.md) |
+| Customize seasons, events, odds, or rarity | [Configuration](docs/CONFIGURATION.md) |
+| Understand how the pieces fit together | [Architecture](docs/ARCHITECTURE.md) |
+| Understand collection IDs and catalogue records | [Data Model](docs/DATA_MODEL.md) |
+| Understand migrations and player storage | [Database](docs/DATABASE.md) |
 
-### Events and variants
+Development uses Node.js 24+, npm, and Windows C# tooling. The verified C# setup
+uses .NET SDK 10.0.401, targets .NET Framework 4.8.1, and runs in Streamer.bot 1.0.7 x64.
+An OBS Browser Source is required for the optional overlay preview.
 
-- Seasonal events with themed Pokémon and costumes.
-- An additional weighted Event encounter category.
-- Temporary access to selected Pokémon from otherwise locked generations.
-- Generation restrictions that still apply to locked Legendary and Mythical Pokémon.
-- Event-only costumes with equal variant weights and protection against selecting an already-owned costume gender when another is missing.
-
-### On-stream catch overlay
-
-- An optional OBS overlay celebrating successful catches.
-- Displays the viewer’s name first, followed by
-  “Caught a [Pokémon name]!”
-- Animates the caught Pokémon’s sprite upward from below into
-  position beneath the text.
-- Plays the Pokémon’s cry once when the sprite appears.
-- Gently moves the sprite up and down while the notification
-  remains visible.
-- Displays the appropriate sprite for the caught form, gender,
-  and shiny variant where available.
-- Clearly identifies shiny catches in the announcement.
-- Queues catch notifications so each appears individually,
-  without overlapping animations or cries.
-- Supports configurable styling, display duration, animation
-  speed, movement distance, and audio volume.
-- Allows Pokémon cries to be muted.
-- Continues displaying the catch if its audio is unavailable.
-
-### Future website support
-
-- Catch records containing the information needed for a future collection showcase and leaderboard.
-- Pokémon names, Pokédex numbers, forms, types, gender variants, shiny status, and sprite references.
-- Catch history showing when and during which season each Pokémon was obtained.
-
-## Customization
-
-The project will separate configurable settings from the catching logic wherever practical.
-
-Creators will be able to adjust encounter weights, shiny bonuses, season schedules, event rosters, cooldowns, and chat messages. Setup instructions and development documentation will be added alongside the implementation.
-
-## Planned requirements
-
-- Streamer.bot
-- A Twitch channel with channel-point rewards enabled
-- Pokémon data generated from PokéAPI
-
-Additional requirements and installation instructions will be documented as development progresses.
-
-## Documentation
-
-- [SQLite setup and persistence test](docs/SQLITE_SETUP.md)
-- [C# development setup](docs/CSHARP_DEVELOPMENT.md)
+Generated catalogues, downloaded caches, build output, personal installation
+settings, runtime data, and backups stay out of Git. Existing tracked samples
+remain reviewable examples.
 
 ## Credits
 
 Created by **OleKoderNo**, known on Twitch as **KapteinOle**.
 
-Pokémon data and sprite references will be sourced from [PokéAPI](https://pokeapi.co/).
+Pokémon source data, sprite references, and cry references come from
+[PokéAPI](https://pokeapi.co/).
 
-This is an unofficial fan project and is not affiliated with Pokémon, Nintendo, Game Freak, or Creatures.
+This is an unofficial fan project and is not affiliated with Pokémon,
+Nintendo, Game Freak, or Creatures.

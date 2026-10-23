@@ -1,598 +1,189 @@
-# Development Guide
+# Pokémon Data Model
 
-This guide explains how to develop and run the TypeScript catalogue
-tools for PokéHunter Seasons.
+This guide owns catalogue identities and structure. For generation commands, see
+[Development](DEVELOPMENT.md); for player records, see [Database](DATABASE.md).
 
-For C# projects, Streamer.bot action checks, and local DLL deployment,
-see [C# Development Setup](CSHARP_DEVELOPMENT.md).
+## Current output
 
-For SQLite setup and storage behaviour, see
-[SQLite Setup](SQLITE_SETUP.md) and [Database](DATABASE.md).
+`data/catalogue/merged-entries.json` combines Generation 1, Halloween families,
+reviewed Ghost forms, Hangry Morpeko, and five ORAS costumes. It contains entries
+and encounter groups with resolved rarity. C# loading and relationship checks exist.
 
-For the local catch overlay, OBS setup, and Streamer.bot preview action,
-see [Catch Overlay](CATCH_OVERLAY.md).
+The verified roster has 620 entries (310 normal and 310 shiny) in 277 groups.
+Counts are a snapshot, not constants future catalogues must retain.
 
-## Current implementation status
+The document remains an intermediate format:
 
-The TypeScript tools can:
-
-- Generate a four-entry regular Pikachu sample.
-- Check the general regular-species converter against representative species.
-- Generate regular Generation 1 collection entries.
-- Resolve event family selectors into complete evolution-chain species lists.
-- Generate regular entries for those family members.
-- Discover Pokémon resources matching event type selectors.
-- Inspect form metadata before conversion.
-- Generate the reviewed Ghost-type collection entries.
-- Inspect Hangry Morpeko and the five selected Pikachu costumes.
-
-These tools produce samples, intermediate catalogues, and review reports.
-
-They do not yet produce a complete release-ready game catalogue.
-They do not execute catches, write player ownership, or activate events
-inside Streamer.bot.
-
-Hangry Morpeko and the five selected Pikachu costumes now have a
-dedicated converter and importer.
-
-The converter generates two Hangry Morpeko entries and ten female-only
-costume entries. Each included variant has normal and shiny entries.
-
-These entries are saved separately and have not yet been merged into
-the final runtime catalogue.
-
-The C# configuration and SQLite foundations are implemented separately.
-Catalogue integration with the catching runtime is still pending.
-
-## Requirements
-
-- Node.js 24 or newer.
-- npm.
-- Internet access for installing dependencies and downloading uncached
-  PokéAPI resources.
-
-Check your installed versions:
-
-```powershell
-node --version
-npm --version
+```json
+{
+  "schemaVersion": 1,
+  "sampleOnly": true,
+  "scope": "merged-collection-entries",
+  "sources": [],
+  "encounterGroups": [],
+  "entries": []
+}
 ```
 
-Run the commands in this guide from the repository root.
-
-## Install dependencies
-
-For a checkout containing the committed lockfile:
-
-```powershell
-npm ci
-```
-
-Use the project-local dependency versions recorded in
-`package-lock.json`.
-
-The development tools include:
-
-- TypeScript for type checking and compilation.
-- Node.js type definitions.
-- ESLint and typescript-eslint for code-quality checks.
-- eslint-config-prettier to disable conflicting formatting rules.
-- Prettier for supported source and documentation formatting.
-- jiti for loading the TypeScript ESLint configuration.
-
-TypeScript is currently pinned to `5.9.3`.
-Review TypeScript and typescript-eslint compatibility together before
-upgrading.
-
-Commit `package.json` and `package-lock.json` together when dependency
-changes affect both files.
-
-Do not commit `node_modules/`.
-
-## Source and compiled files
-
-Edit TypeScript files inside `scripts/`.
-
-The build command compiles them into `dist/`:
-
-```powershell
-npm run build:tools
-```
-
-Files in `dist/` are generated JavaScript.
-Do not edit or commit them.
-
-Relative imports in TypeScript use `.js` extensions because the compiled
-files execute as Node ES modules:
-
-```typescript
-import { getPokeApiResource } from "./lib/pokeapi.js";
-```
-
-TypeScript resolves this to the source module during development.
-Node resolves the generated JavaScript module after compilation.
-
-Each importer or inspection npm command builds the tools before
-executing its script. If compilation fails, that script does not run.
-
-## Available commands
-
-| Command                                       | Purpose                                                                       |
-| --------------------------------------------- | ----------------------------------------------------------------------------- |
-| `npm run typecheck`                           | Check TypeScript without emitting JavaScript                                  |
-| `npm run build:tools`                         | Compile the TypeScript tools                                                  |
-| `npm run import:sample`                       | Generate the original four-entry Pikachu sample                               |
-| `npm run import:regular-sample`               | Run regular-species sample checks and generate their sample                   |
-| `npm run import:gen1`                         | Generate regular Generation 1 entries                                         |
-| `npm run import:event-families`               | Resolve the selected event's families and generate regular entries            |
-| `npm run review:event-types`                  | Discover candidates matching the selected event's types                       |
-| `npm run inspect:event-forms`                 | Inspect the discovered candidates' form metadata                              |
-| `npm run import:reviewed-ghosts`              | Generate entries from the reviewed Halloween Ghost forms                      |
-| `npm run import:event-variants`               | Generate Hangry Morpeko and the five female-only Pikachu costumes             |
-| `data/catalogue/halloween-2026-variants.json` | Twelve entries for the six reviewed explicit variants                         |
-| `npm run inspect:event-variants`              | Print metadata for Hangry Morpeko and the five selected costumes              |
-| `npm run lint`                                | Check configured source files with ESLint                                     |
-| `npm run lint:fix`                            | Apply supported ESLint fixes                                                  |
-| `npm run format`                              | Format files covered by Prettier                                              |
-| `npm run format:check`                        | Check formatting without changing files                                       |
-| `npm run check`                               | Run type checking, linting, standalone converter tests, and formatting checks |
-| `npm run test:tools`                          | Compile and run the standalone converter tests without API or cache access    |
-| `npm run merge:catalogue`                     | Validate and merge the four generated entry catalogues                        |
-
-The current event workflow targets `halloween-2026`.
-Some scripts still contain Halloween-specific paths and reviewed
-expectations.
-
-Do not assume that changing an event ID alone makes every script
-support a different event.
-
-## Generate the current samples and intermediate catalogues
-
-Start with the sample checks:
-
-```powershell
-npm run import:sample
-npm run import:regular-sample
-```
-
-Then generate Generation 1 and the event families:
-
-```powershell
-npm run import:gen1
-npm run import:event-families
-```
-
-Run the type discovery, form inspection, and reviewed import in order:
-
-```powershell
-npm run review:event-types
-npm run inspect:event-forms
-npm run import:reviewed-ghosts
-```
-
-The reviewed Ghost importer requires:
-
-- The form-details report produced by `inspect:event-forms`.
-- The Generation 1 catalogue produced by `import:gen1`.
-
-It compares overlapping entries against Generation 1 so the same
-collection identity is not represented differently by two importers.
-
-Inspect the explicit event variants separately:
-
-```powershell
-npm run inspect:event-variants
-```
-
-This last command prints a report.
-It does not generate collection entries or change catalogue files.
-
-Stop and investigate a failed command before proceeding to a command
-that depends on its output.
-
-An older output file may still exist after a failed run.
-Its presence does not prove the latest import succeeded.
-
-## Generated outputs
-
-| Path                                              | Contents                                                |
-| ------------------------------------------------- | ------------------------------------------------------- |
-| `data/samples/pikachu.json`                       | Four regular Pikachu collection entries                 |
-| `data/samples/regular-species.json`               | Representative regular-species sample entries           |
-| `data/catalogue/generation-1.json`                | Regular Generation 1 entries                            |
-| `data/catalogue/halloween-2026-families.json`     | Selected evolution families and their regular entries   |
-| `data/catalogue/halloween-2026-type-review.json`  | Candidates discovered through type selectors            |
-| `data/catalogue/halloween-2026-form-details.json` | Detailed form inspection results                        |
-| `data/catalogue/halloween-2026-ghosts.json`       | Reviewed Ghost-type collection entries                  |
-| `data/catalogue/merged-entries.json`              | Validated, deduplicated intermediate collection entries |
-
-The catalogue files are intermediate build products.
-Their wrappers and review fields are not the final runtime catalogue
-contract.
-
-Keep existing tracked samples as reviewable examples.
-Regenerate them through the tools rather than editing their JSON
-manually.
-
-Generated files under `data/catalogue/` and downloaded responses under
-`cache/` are excluded from Git.
-
-Do not force-add these ignored directories.
-A future release workflow must package the validated runtime catalogue
-or provide documented generation steps.
-
-## Merge generated entry catalogues
-
-After generating the four input catalogues, run:
-
-```powershell
-npm run merge:catalogue
-```
-
-The command reads:
-
-- `data/catalogue/generation-1.json`
-- `data/catalogue/halloween-2026-families.json`
-- `data/catalogue/halloween-2026-ghosts.json`
-- `data/catalogue/halloween-2026-variants.json`
-
-It validates saved entry fields, merges identical overlaps, and checks
-that normal and shiny counterparts exist and share consistent metadata.
-
-Conflicting copies of the same entry cause an error identifying both
-sources. Do not bypass this check or manually edit generated output.
-
-The result is saved to `data/catalogue/merged-entries.json`.
-
-All validation completes before output replacement. A failed validation
-leaves any existing merged output unchanged; that older file must not be
-mistaken for the result of the failed command.
-
-The command uses local files and does not download API resources.
-
-This is an intermediate entry catalogue. It does not yet contain the
-complete runtime species, family, encounter-group, and rarity records.
-
-## Downloaded resources and caching
-
-The downloader stores API responses in the repository's `cache/`
-directory.
-
-Examples:
-
-```text
-cache/pokemon--pikachu.json
-cache/pokemon-species--pikachu.json
-cache/evolution-chain--10.json
-```
-
-These files contain source API responses, not collection entries.
-
-The terminal reports:
-
-- `[download]` when fetching a missing resource.
-- `[cache]` when using an existing cached resource.
-
-Run a command a second time to confirm that its resources are reused.
-
-A command can avoid network requests when all of its required resources
-are already cached and its dependencies are installed.
-
-The cache is not automatically refreshed.
-It is also not a versioned snapshot of PokéAPI.
-
-### Refresh a resource
-
-1. Stop any importer using the cache.
-2. Delete the specific resource file from `cache/`.
-3. Run the relevant command again.
-
-Only a missing cache file triggers a download.
-
-Invalid JSON, unexpected resource identity, permission errors, and
-other read failures are reported instead of being silently replaced.
-
-Do not edit cached responses to customize the game.
-Game-specific decisions belong in reviewed conversion rules or future
-override configuration.
-
-## Encounter-group generation
-
-Run `npm run merge:catalogue` to rebuild the merged intermediate
-catalogue and its encounter groups.
-
-The merge validates collection entries and shiny counterparts before
-building groups. Nothing is saved until these checks succeed.
-
-`scripts/lib/create-encounter-groups.ts` builds groups from the entries'
-existing group IDs. It does not assign rarity or decide which Pokémon
-are currently obtainable.
-
-`scripts/tests/create-encounter-groups.test.ts` verifies variant grouping,
-separate regional-form groups, duplicate rejection, species consistency,
-deterministic ordering, and preservation of input records.
-
-These tests run through `npm run test:tools` and `npm run check`.
-They use local fixtures and do not require PokéAPI access.
-
-## File responsibilities
-
-| File                                       | Responsibility                                                 |
-| ------------------------------------------ | -------------------------------------------------------------- |
-| `scripts/types/catalogue.ts`               | Defines the current collection-entry TypeScript types          |
-| `scripts/lib/pokeapi.ts`                   | Fetches, validates resource identity, and caches API responses |
-| `scripts/lib/read-evolution-chain-id.ts`   | Validates and extracts evolution-chain references              |
-| `scripts/lib/collect-evolution-species.ts` | Collects species across evolution-chain branches               |
-| `scripts/lib/create-pikachu-entries.ts`    | Generates the original Pikachu reference sample                |
-| `scripts/lib/create-regular-entries.ts`    | Converts supported regular species and exposes shared readers  |
-| `scripts/lib/create-form-entries.ts`       | Converts reviewed forms, including special gender mappings     |
-| `scripts/import-pokemon.ts`                | Coordinates the original Pikachu sample                        |
-| `scripts/import-regular-sample.ts`         | Runs representative regular-species checks                     |
-| `scripts/import-generation-one.ts`         | Generates and checks regular Generation 1 entries              |
-| `scripts/import-event-families.ts`         | Resolves family selectors and generates regular family entries |
-| `scripts/review-event-types.ts`            | Discovers event type candidates for review                     |
-| `scripts/inspect-event-forms.ts`           | Inspects candidate forms and their introduction metadata       |
-| `scripts/import-reviewed-ghosts.ts`        | Generates and checks the reviewed Ghost entries                |
-| `scripts/inspect-event-variants.ts`        | Inspects the six explicit event variant resources              |
-| `eslint.config.mts`                        | Configures ESLint                                              |
-| `tsconfig.json`                            | Configures TypeScript compilation                              |
-| `package.json`                             | Defines dependencies and npm commands                          |
-| `package-lock.json`                        | Records resolved dependency versions                           |
-
-## Testing and validation
-
-Testing applies to both TypeScript and C#.
-
-Different checks provide different kinds of evidence.
-
-### Combined development checks
-
-From the repository root, run:
-
-```powershell
-npm run check
-```
-
-This runs the following checks in order:
-
-1. TypeScript type checking for Node tooling.
-2. TypeScript type checking for the browser overlay.
-3. ESLint for Node tooling and browser overlay source.
-4. Compilation and standalone catalogue-tooling tests.
-5. Prettier's formatting check.
-
-The command stops when a step fails.
-
-The standalone tests cover catalogue tooling. Overlay behaviour is
-currently verified through the manual Streamer.bot and OBS checklist
-in [Catch Overlay](CATCH_OVERLAY.md).
-
-The command does not run API-backed importers, download Pokémon data,
-or validate generated catalogue files.
-
-The test step generates compiled JavaScript in `dist/`.
-
-Run the relevant importer commands separately when changing conversion
-or catalogue-generation logic.
-
-### Existing importer behaviour checks
-
-Several import scripts contain assertions.
-
-Current coverage includes:
-
-- Evolution-chain reference validation.
-- Expected entries for representative gender cases.
-- Agreement between the original Pikachu converter and the general converter.
-- Generation 1 species coverage and unique collection identities.
-- Normal and shiny counterparts.
-- Reviewed form metadata and special gender identities.
-- Agreement between overlapping Generation 1 and Ghost entries.
-
-Run the relevant importer commands when changing those behaviours.
-
-These checks use downloaded or cached source data.
-Results can therefore depend on the available API data and local cache.
-
-Inspection scripts primarily report metadata.
-A successful inspection is not proof that conversion or encounter rules
-are correct.
-
-### Standalone TypeScript tests
-
-Run:
-
-```powershell
-npm run test:tools
-```
-
-The command compiles the TypeScript tools and runs these files using
-Node's built-in test runner:
-
-- `dist/tests/catalogue.test.js`
-- `dist/tests/event-variants.test.js`
-- `dist/tests/merge-collection-entries.test.js`
-- `dist/tests/validate-collection-entry.test.js`
-
-Test source is stored in `scripts/tests/catalogue.test.ts`.
-Fresh synthetic fixtures come from
-`scripts/tests/fixtures/catalogue-fixtures.ts`.
-
-The merge tests verify that identical entries across sources are
-deduplicated, conflicting copies are rejected, duplicate IDs within one
-source are rejected, output ordering is stable, and input entries are
-not mutated.
-
-Saved-entry validation and normal/shiny counterpart checks have
-standalone tests. The merge command integrates these checks with local
-JSON loading and temporary-file output replacement.
-
-Automated tests do not yet exercise the merge command's filesystem
-failure paths. Run `npm run merge:catalogue` to check the generated inputs.
-
-Coverage includes:
-
-- Normal and shiny identities.
-- Visible gender differences.
-- Genderless, single-gender, and unspecified entries.
-- Missing optional media and malformed sprite protocols.
-- Invalid required metadata and duplicate types.
-- Regional-form encounter groups and introduction generations.
-- Form types taking precedence over parent types.
-- Canonical gender mappings for Frillish, Jellicent, and Basculegion.
-- Matching parent sprite fallback.
-- Preventing alternate forms from borrowing default-form artwork.
-- Unsupported form labels, generations, and mismatched resources.
-
-The importer checks remain in place to verify conversion against
-downloaded or cached source data.
-
-The event-variant tests additionally cover female-only costume identities,
-shared Pikachu encounter groups, event-only flags, Hangry Morpeko,
-missing media, matching parent artwork, and rejected resource mappings.
-
-These tests do not cover the downloader, final catalogue merging,
-or runtime encounter selection.
-
-### C# checks
-
-The npm commands do not build or test C#.
-
-Follow [C# Development Setup](CSHARP_DEVELOPMENT.md) for configuration
-checks, Streamer.bot actions, and storage checks.
-
-Run the relevant C# checks when changing C# code or integrating a changed
-catalogue contract with the runtime.
-
-## Media references
-
-The tools read sprite and cry references from source data.
-
-A non-null URL means a reference is present.
-It does not prove that the remote file exists, loads successfully, or
-contains the correct visual or audio content.
-
-The current workflow does not download and verify all media assets.
-
-Missing optional references use `null`.
-They must not silently remove collection entries.
-
-Malformed references are rejected by the conversion readers.
-
-## Error handling
-
-Import commands report failures and set a non-zero exit code.
-
-Network requests have a 15-second timeout.
-
-Failures can include:
-
-- Unreadable or malformed cache files.
-- Failed requests.
-- Unexpected API resource identity.
-- Missing or invalid required fields.
-- Unsupported reviewed mappings.
-- Duplicate or inconsistent collection identities.
-- Failed output writes.
-
-Read the reported cause before deleting files or changing validation.
-
-The catalogue generators that use temporary-file replacement preserve
-the previous output until the new file has been written successfully.
-This does not make the entire multi-command workflow transactional.
-
-## Code quality and formatting
-
-Run:
-
-```powershell
-npm run format
-npm run check
-```
-
-Review the diff after formatting.
-
-For supported automatic lint fixes:
-
-```powershell
-npm run lint:fix
-```
-
-Some lint problems require manual changes.
-Do not disable rules simply to hide an unexplained error.
-
-ESLint covers the TypeScript scripts and its TypeScript configuration
-according to `eslint.config.mts`.
-
-Prettier handles supported files, including TypeScript, JSON, and Markdown,
-subject to the project's ignore configuration.
-
-Prettier does not format C#.
-See the C# development guide for the C# formatter.
-
-Editor extensions are optional.
-The command-line checks provide the shared workflow for contributors.
-
-## TypeScript conventions
-
-- Treat external JSON as `unknown` until validated.
-- Validate required fields before using them.
-- Use types to describe validated structures.
-- Do not use a type assertion as a substitute for runtime validation.
-- Use type-only imports where required by ESLint.
-- Keep collection identity separate from display text.
-- Keep conversion rules separate from downloading and file writing.
-- Explain non-obvious decisions in comments.
-- Preserve existing checks when adding new coverage.
-
-## Before committing
-
-1. Run the behaviour checks relevant to the changed code.
-2. Run `npm run format`.
-3. Run `npm run check`.
-4. Run `git diff --check`.
-5. Review `git status --short` and the diff.
-6. Update documentation when commands, outputs, or behaviour change.
-7. Stage only the intended source, sample, and documentation changes.
-
-Do not commit cached responses, compiled output, local installation
-settings, player databases, or backups.
-
-Passing formatting and lint checks does not replace reviewing what is
-being committed.
-
-## Remaining catalogue work
-
-Before the catalogue can support live catches, we still need to:
-
-- Add standalone converter tests.
-- Merge and validate the generated explicit event variants alongside
-  Generation 1, event-family, and reviewed Ghost entries.- Resolve outstanding form and encounter-group mappings.
-- Merge overlapping generated entries without conflicting identities.
-- Review rarity assignments.
-- Build and validate the final runtime catalogue.
-- Validate configured event selectors against that catalogue.
-- Integrate catalogue loading and eligibility with C#.
-- Document generation, packaging, and deployment for other creators.
-- Add standalone converter tests.
-
-See [Pokémon Data Model](DATA_MODEL.md) for the current entry contract,
-planned runtime structure, and known differences.
-
-## Rarity configuration checks
-
-The catalogue merger reads config/rarity.json and assigns a rarity
-class to every generated encounter group.
-
-scripts/lib/apply-encounter-rarity.ts validates the configuration,
-rejects unknown group overrides, and produces new group records
-without modifying its inputs.
-
-scripts/tests/apply-encounter-rarity.test.ts covers defaults, explicit
-overrides, supported classes, invalid configuration, unknown group IDs,
-duplicate groups, and input preservation.
-
-These offline tests run through npm run test:tools and npm run check.
-
-Run npm run merge:catalogue to additionally verify the actual rarity
-configuration against the generated Pokémon roster.
+The empty arrays illustrate shape only; the validator requires populated sources,
+groups, and entries. No separate species/family arrays or release-version metadata
+are produced yet. Earlier `data/pokemon.json` sketches were proposals, not an output contract.
+
+## Identity levels
+
+| Identity | Meaning                                              | Example                |
+| -------- | ---------------------------------------------------- | ---------------------- |
+| Species  | Underlying species                                   | `pikachu`              |
+| Group    | One weighted Pokémon option in a category            | `pikachu`              |
+| Form     | Form/costume shared by gender and shiny counterparts | `pikachu-libre`        |
+| Entry    | One collectible identity                             | `pikachu:female:shiny` |
+
+Entry IDs follow `<formId>:<gender>:<normal-or-shiny>`. They do not depend on display
+names, media URLs, array positions, or the active season/event. Once catches reference
+an ID, do not rename, reuse, or remove it without a migration/compatibility plan.
+The National Pokédex number identifies a species, not a unique collection entry.
+
+## Collection entry fields
+
+Contracts: `scripts/types/catalogue.ts` and
+`streamerbot/configuration/catalogue/CatalogueDocument.cs`.
+
+| Field                              | Meaning                                                 |
+| ---------------------------------- | ------------------------------------------------------- |
+| `id`                               | Permanent collection identity                           |
+| `speciesId`                        | Underlying species slug                                 |
+| `nationalDexNumber`                | Positive National Pokédex number                        |
+| `evolutionChainId`                 | Positive PokéAPI evolution-chain reference              |
+| `isLegendary`, `isMythical`        | Species classifications                                 |
+| `encounterGroupId`                 | Group used before variant selection                     |
+| `formId`                           | Canonical supported form identity                       |
+| `displayName`                      | Species display name                                    |
+| `formName`                         | Reviewed form label, or null                            |
+| `regionalForm`                     | Regional identifier such as `alola`, or null            |
+| `gender`                           | `male`, `female`, `genderless`, or `unspecified`        |
+| `hasGenderDifference`              | Visible gender difference for the supported form        |
+| `isShiny`                          | Normal/shiny state                                      |
+| `isCostume`                        | Costume classification                                  |
+| `eventOnly`                        | Requires eligible active-event inclusion                |
+| `introducedGeneration`             | Form's introduction generation; currently supported 1–9 |
+| `types`                            | One or two distinct supported type slugs in slot order  |
+| `sprite.url`, `sprite.fallbackUrl` | Matching/reference fallback artwork URL, or null        |
+| `cries.latest`, `cries.legacy`     | Cry URLs, or null                                       |
+
+The overlay test combines species name and form label for announcements. Do not assume
+`displayName` already includes the form. Null media properties remain present in JSON.
+
+## Gender and shiny mappings
+
+- Visible gender differences receive separate male/female entries.
+- Single-gender species/forms retain that gender; genderless species use `genderless`.
+- Mixed-gender forms without a supported difference use `unspecified`, not `genderless`.
+- Reviewed Frillish, Jellicent, and Basculegion gender resources share a canonical form
+  ID; avoid encoding the gender twice in form and entry identity.
+- Species metadata is not sufficient for every costume. The five ORAS costumes are
+  female-only and set `hasGenderDifference: false` for those particular forms.
+- Missing female sprite fields do not decide whether a female identity exists.
+
+Every included form/gender has both normal and shiny entries, even when officially
+shiny-locked. Counterparts agree on all metadata except `id`, `isShiny`, and `sprite`.
+Missing shiny artwork does not remove the shiny entry or justify presenting normal
+artwork as an accurate shiny image.
+
+## Encounter groups and rarity
+
+A generated group contains:
+
+| Field                            | Meaning                                      |
+| -------------------------------- | -------------------------------------------- |
+| `id`                             | ID referenced by entries                     |
+| `speciesId`, `nationalDexNumber` | Shared species identity                      |
+| `entryIds`                       | All member collection IDs                    |
+| `rarityClass`                    | `common`, `uncommon`, `rare`, or `ultraRare` |
+
+Non-costume entries use canonical `formId` as their group. Costumes use `speciesId`.
+Thus regular and Alolan Marowak are separate groups, gendered Basculegion shares one,
+and Pikachu costumes join `pikachu`. Extra variants do not multiply group weight.
+
+`config/rarity.json` resolves a default plus exact-ID overrides during merging.
+`game.json` holds numerical weights. Rarity changes do not change collection identity
+or grant eligibility. See [Configuration](CONFIGURATION.md#rarity-assignments).
+
+## Families, forms, and events
+
+Regular entries use species introduction metadata; reviewed forms use their resolved
+form version-group generation. Gender indexing follows the represented form's generation.
+
+Family import traverses all source evolution branches, but generates regular entries;
+reviewed form import supplies additional forms separately. Runtime family selectors
+resolve a species slug to `evolutionChainId` and match represented entries. This does
+not prove the catalogue contains every possible member or form of that family.
+
+Do not store permanent Halloween/Christmas flags on entries. Event configuration
+selects types, families, forms, and explicit costumes. Generation restrictions still
+apply after matching. `eventOnly: false` does not mean universally available.
+
+The costume converter produces ten entries: female normal/shiny for each of the five
+ORAS outfits, introduced in Generation 6, grouped under Pikachu, and event-only.
+Hangry Morpeko has two unspecified entries, its own group, Generation 8, and
+`eventOnly: false`; it still needs an event exception during Season 1.
+
+## C# availability structures
+
+| Class                      | Responsibility                                                |
+| -------------------------- | ------------------------------------------------------------- |
+| `CatalogueLoader`          | Read and deserialize the intermediate file; invoke validation |
+| `CatalogueValidator`       | Check values, counterparts, groups, and references            |
+| `CatalogueIndex`           | Owned copies and exact case-sensitive ID lookups              |
+| `EligibleCataloguePool`    | General eligible IDs and an Event subset for one instant      |
+| `EligibilityPoolBuilder`   | Resolve schedules/selectors and generation restrictions       |
+| `EncounterCategoryBuilder` | Build populated categories/groups for one shiny state         |
+
+Returned index records are independent copies, including nested lists and media.
+Unknown entry/group lookups return null; unknown group-member requests throw.
+The runtime must retain the index and refresh pools; these classes do not create a
+live cache automatically.
+
+Category candidates retain eligible entry subsets. An Event category selecting only
+costumes cannot award a regular variant that failed its selectors. An ordinary type
+can include both when independently eligible. Ownership completion and random variant
+selection remain unimplemented.
+
+## Merge and validation guarantees
+
+- Duplicate IDs within a source fail. Identical entries across sources deduplicate.
+- Conflicting copies of an ID fail with source context; file order does not choose a winner.
+- Entries are sorted by dex number then ID; group generation has deterministic ordering.
+- TypeScript validates required/unknown fields, supported values, identity relationships,
+  media-reference structure, and matching normal/shiny counterparts.
+- Group generation rejects conflicting species/dex metadata. Rarity rejects unknown
+  group overrides and unsupported classes.
+- C# validates counterparts, group references, exact membership, supported metadata,
+  and required properties. Its loader rejects unknown properties and trailing content.
+- Active-event resolution rejects absent family-selector species, forms, and costumes.
+  It does not resolve every inactive event or certify complete catalogue coverage.
+
+Validation is not verification of every Pokémon fact or remote media file. C# and
+TypeScript validators have separate implementations; do not assume identical coercion
+behavior for arbitrary malformed JSON. Use the tested generation workflow.
+
+## Media and source boundaries
+
+Store references, not embedded image/audio data. Read source URLs instead of guessing
+them. Null means missing; an HTTP(S) reference does not prove reachability or correct
+artwork/audio. Reviewed fallback rules must not substitute the wrong alternate form.
+
+PokéAPI supplies data; the project owns identity, grouping, costume classification,
+rarity, and shiny availability decisions. Ambiguous forms need review before conversion.
+See [PokéAPI](https://pokeapi.co/docs/v2/) for source documentation.
+
+## Player data and future releases
+
+The catalogue contains no viewer IDs, ownership, timestamps, streaks, or redemptions.
+Intended ownership keys are `(viewer, season, entry)` for seasonal uniqueness and
+`(viewer, entry)` for lifetime uniqueness. Recatches across seasons add history, not
+another unique bonus.
+
+For content updates: preserve IDs, validate changed mappings and overlapping sources,
+review rarity, report missing media, and retain definitions needed by historical catches.
+Retiring availability must not destroy history. Release metadata, final packaging,
+controlled deployment, and archival compatibility remain to be implemented.
