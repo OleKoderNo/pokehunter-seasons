@@ -12,6 +12,7 @@
     "build:tools": "tsc",
     "import:sample": "npm run build:tools && node dist/import-pokemon.js",
     "import:regular-sample": "npm run build:tools && node dist/import-regular-sample.js",
+    "import:gen1": "npm run build:tools && node dist/import-generation-one.js",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
     "format": "prettier . --write",
