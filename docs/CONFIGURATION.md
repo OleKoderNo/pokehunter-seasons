@@ -1731,8 +1731,18 @@ The supported class names are case-sensitive:
 
 Every group without an override receives `defaultClass`.
 
-The initial all-common configuration is a development baseline.
-The Pokémon rarity balance has not yet been reviewed.
+The configuration contains an initial custom rarity balance for the
+Generation 1 and Halloween catalogue.
+
+Groups without an override remain common. Overrides assign selected
+groups to uncommon, rare, or ultraRare.
+
+These assignments are game-design choices, not official Pokémon
+encounter rates. They remain adjustable after testing the complete
+encounter system.
+
+Adding a new group automatically gives it the default class unless an
+override is added. Review rarity assignments whenever the roster expands.
 
 ### Change a Pokémon's rarity
 
