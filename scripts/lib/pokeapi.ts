@@ -11,71 +11,36 @@ const REQUEST_TIMEOUT_MS = 15_000;
 
 export type JsonObject = Record<string, unknown>;
 
-/**
- * Checks whether a value is a non-null object rather than an array.
- *
- * This lets TypeScript safely narrow unknown JSON values.
- */
+type ResourceValidator = (data: unknown) => JsonObject;
+
+/** Narrows unknown JSON to a non-null object rather than an array. */
 export function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
- * Checks the identity of a named API resource.
+ * Shared cache and download handling.
  *
- * This is not complete validation of every endpoint field.
- * Converters validate the additional fields they consume.
+ * Callers validate path components before using this private helper.
+ * Each caller supplies validation appropriate to its endpoint.
  */
-function validateResource(
-  data: unknown,
-  resourceName: string,
-): asserts data is JsonObject {
-  if (
-    !isJsonObject(data) ||
-    typeof data.id !== "number" ||
-    !Number.isInteger(data.id) ||
-    data.id <= 0 ||
-    data.name !== resourceName
-  ) {
-    throw new Error(`Invalid resource data for "${resourceName}".`);
-  }
-}
-
-/**
- * Loads a named PokéAPI resource from the local cache or the API.
- *
- * Only a missing cache file triggers a download. Invalid cached data
- * is reported so it can be inspected rather than silently replaced.
- *
- * This helper expects a named resource with an ID and name.
- * It does not handle list endpoints or unnamed resources.
- */
-export async function getPokeApiResource(
+async function loadResource(
   resourceType: string,
-  resourceName: string,
+  identifier: string,
+  validate: ResourceValidator,
 ): Promise<JsonObject> {
-  // Restrict both arguments to lowercase endpoint names and slugs.
-  // This also prevents paths from escaping the cache directory.
-  const validSlug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-  if (!validSlug.test(resourceType) || !validSlug.test(resourceName)) {
-    throw new Error("Resource type and name must be lowercase slugs.");
-  }
-
-  const resourcePath = `${resourceType}/${resourceName}`;
+  const resourcePath = `${resourceType}/${identifier}`;
 
   const cacheFile = new URL(
-    `${resourceType}--${resourceName}.json`,
+    `${resourceType}--${identifier}.json`,
     CACHE_DIRECTORY,
   );
 
   let cachedText: string | undefined;
 
   try {
-    cachedText = await readFile(cacheFile, "utf-8");
+    cachedText = await readFile(cacheFile, "utf8");
   } catch (error: unknown) {
-    // Permission errors and other filesystem failures must not be
-    // mistaken for a missing cache file.
     const isMissingFile = isJsonObject(error) && error.code === "ENOENT";
 
     if (!isMissingFile) {
@@ -87,12 +52,11 @@ export async function getPokeApiResource(
 
   if (cachedText !== undefined) {
     try {
-      const cachedData: unknown = JSON.parse(cachedText);
-
-      validateResource(cachedData, resourceName);
+      const data: unknown = JSON.parse(cachedText);
+      const validated = validate(data);
 
       console.log(`[cache] ${resourcePath}`);
-      return cachedData;
+      return validated;
     } catch (error: unknown) {
       throw new Error(
         `Invalid cache file for ${resourcePath}. ` +
@@ -102,11 +66,9 @@ export async function getPokeApiResource(
     }
   }
 
-  console.log(`[download] ${resourcePath}`);
-
   const url = new URL(`${resourcePath}/`, API_BASE_URL);
 
-  console.log(`[request] ${url.href}`);
+  console.log(`[download] ${resourcePath}`);
 
   const response = await fetch(url, {
     headers: {
@@ -123,13 +85,69 @@ export async function getPokeApiResource(
   }
 
   const data: unknown = await response.json();
-
-  // Validate the resource identity before saving it to the cache.
-  validateResource(data, resourceName);
+  const validated = validate(data);
 
   await mkdir(CACHE_DIRECTORY, { recursive: true });
 
-  await writeFile(cacheFile, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
+  await writeFile(cacheFile, `${JSON.stringify(validated, null, 2)}\n`, "utf8");
 
-  return data;
+  return validated;
+}
+
+/**
+ * Loads a named resource such as a Pokémon, species, type, or generation.
+ *
+ * This checks resource identity. Converters validate the fields they use.
+ */
+export async function getPokeApiResource(
+  resourceType: string,
+  resourceName: string,
+): Promise<JsonObject> {
+  const validSlug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+  if (!validSlug.test(resourceType) || !validSlug.test(resourceName)) {
+    throw new Error("Resource type and name must be lowercase slugs.");
+  }
+
+  return loadResource(resourceType, resourceName, (data) => {
+    if (
+      !isJsonObject(data) ||
+      typeof data.id !== "number" ||
+      !Number.isSafeInteger(data.id) ||
+      data.id <= 0 ||
+      data.name !== resourceName
+    ) {
+      throw new Error(`Invalid resource data for "${resourceName}".`);
+    }
+
+    return data;
+  });
+}
+
+/**
+ * Loads an evolution chain by numeric ID.
+ *
+ * Unlike named resources, an evolution chain has no top-level name.
+ * Its tree is validated separately when collecting family members.
+ */
+export async function getPokeApiEvolutionChain(
+  evolutionChainId: number,
+): Promise<JsonObject> {
+  if (!Number.isSafeInteger(evolutionChainId) || evolutionChainId <= 0) {
+    throw new Error("Evolution-chain ID must be a positive safe integer.");
+  }
+
+  return loadResource("evolution-chain", String(evolutionChainId), (data) => {
+    if (
+      !isJsonObject(data) ||
+      data.id !== evolutionChainId ||
+      !isJsonObject(data.chain)
+    ) {
+      throw new Error(
+        `Invalid evolution-chain data for ID ${evolutionChainId}.`,
+      );
+    }
+
+    return data;
+  });
 }
