@@ -42,7 +42,7 @@ const SUPPORTED_TYPES = new Set([
  * Missing media is allowed; malformed media references are rejected.
  * Missing artwork must not remove an otherwise valid shiny entry.
  */
-function readAssetUrl(container: unknown, field: string): string | null {
+export function readAssetUrl(container: unknown, field: string): string | null {
   if (container === null || container === undefined) {
     return null;
   }
@@ -71,7 +71,7 @@ function readAssetUrl(container: unknown, field: string): string | null {
 }
 
 /** Reads the explicitly identified National Pokédex number. */
-function readNationalDexNumber(species: JsonObject): number {
+export function readNationalDexNumber(species: JsonObject): number {
   if (!Array.isArray(species.pokedex_numbers)) {
     throw new Error("Species has no valid Pokédex records.");
   }
@@ -104,7 +104,7 @@ function readNationalDexNumber(species: JsonObject): number {
  * Do not generate names by capitalizing API slugs: names may contain
  * punctuation or gender symbols that the slug does not preserve.
  */
-function readDisplayName(species: JsonObject): string {
+export function readDisplayName(species: JsonObject): string {
   if (!Array.isArray(species.names)) {
     throw new Error("Species has no valid localized names.");
   }
@@ -131,7 +131,7 @@ function readDisplayName(species: JsonObject): string {
 }
 
 /** Reads distinct supported types in their API slot order. */
-function readTypes(pokemon: JsonObject): string[] {
+export function readTypes(pokemon: JsonObject): string[] {
   if (
     !Array.isArray(pokemon.types) ||
     pokemon.types.length < 1 ||
@@ -173,7 +173,7 @@ function readTypes(pokemon: JsonObject): string[] {
  * Species with both genders but no visible difference receive one
  * shared identity per shiny state.
  */
-function readCollectionGenders(species: JsonObject): CollectionGender[] {
+export function readCollectionGenders(species: JsonObject): CollectionGender[] {
   const rate = species.gender_rate;
   const hasDifference = species.has_gender_differences;
 
