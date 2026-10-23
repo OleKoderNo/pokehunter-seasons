@@ -673,3 +673,18 @@ for archives and the National Dex.
 
 The final packaging, deployment, and compatibility workflow remains
 to be implemented.
+
+## Resolved encounter rarity
+
+Generated encounter groups include a `rarityClass` field with one of:
+`common`, `uncommon`, `rare`, or `ultraRare`.
+
+The merger resolves this value from config/rarity.json. An explicit
+group override takes precedence over the configured default.
+
+Numerical weights remain in game.json and are not copied into each
+group. Collection entry IDs and ownership identities are unaffected
+by rarity changes.
+
+Rarity does not override generation restrictions, event requirements,
+shiny state, or variant availability.

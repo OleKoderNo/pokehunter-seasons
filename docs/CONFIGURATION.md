@@ -1704,3 +1704,90 @@ An overlay connection failure, missing sprite, or failed cry does not
 undo the catch or change the viewer's retry streak.
 
 Log display failures separately from gameplay failures.
+
+## Encounter rarity
+
+`config/rarity.json` assigns rarity classes to encounter groups.
+
+`config/game.json` defines the numerical weight of each class under
+`encounters.rarityWeights`.
+
+The supported class names are case-sensitive:
+
+- `common`
+- `uncommon`
+- `rare`
+- `ultraRare`
+
+### Default configuration
+
+```json
+{
+  "schemaVersion": 1,
+  "defaultClass": "common",
+  "overrides": {}
+}
+```
+
+Every group without an override receives `defaultClass`.
+
+The initial all-common configuration is a development baseline.
+The Pokémon rarity balance has not yet been reviewed.
+
+### Change a Pokémon's rarity
+
+1. Open the generated `data/catalogue/merged-entries.json`.
+2. Find the Pokémon's group in `encounterGroups`.
+3. Copy its exact `id`.
+4. Add that ID to `overrides` in `config/rarity.json`.
+5. Choose one of the four supported class names.
+6. Run `npm run merge:catalogue`.
+
+For example:
+
+```json
+{
+  "schemaVersion": 1,
+  "defaultClass": "common",
+  "overrides": {
+    "pikachu": "uncommon",
+    "marowak-alola": "rare"
+  }
+}
+```
+
+These example assignments are illustrative, not the project's
+reviewed rarity balance.
+
+An override affects the whole encounter group. Pikachu's supported
+costumes share its group rarity. Their event eligibility and variant
+selection rules still apply.
+
+Unknown group IDs, unsupported classes, and unexpected configuration
+properties cause generation to fail. Overrides must reference groups
+in the catalogue being generated, including any currently locked groups
+that are present in that catalogue.
+
+### Understand the weights
+
+Weights are relative values, not percentages.
+
+When individual eligible groups are selected using their class weights,
+a common group with weight 10 has ten times the selection weight of an
+ultra-rare group with weight 1.
+
+The final probability also depends on the selected category and the
+other eligible groups. Rarity does not change shiny probability.
+
+### Apply configuration changes
+
+Rarity assignments are currently resolved during catalogue generation.
+Editing rarity.json alone does not update an already-generated catalogue.
+
+Run `npm run merge:catalogue` after editing assignments.
+
+The runtime catalogue loader and encounter selection are not connected
+yet. This configuration does not currently change live Twitch redeems.
+
+Commit rarity.json so other developers receive the same assignments.
+Generated catalogue files remain excluded from Git.

@@ -578,3 +578,21 @@ Before the catalogue can support live catches, we still need to:
 
 See [Pokémon Data Model](DATA_MODEL.md) for the current entry contract,
 planned runtime structure, and known differences.
+
+## Rarity configuration checks
+
+The catalogue merger reads config/rarity.json and assigns a rarity
+class to every generated encounter group.
+
+scripts/lib/apply-encounter-rarity.ts validates the configuration,
+rejects unknown group overrides, and produces new group records
+without modifying its inputs.
+
+scripts/tests/apply-encounter-rarity.test.ts covers defaults, explicit
+overrides, supported classes, invalid configuration, unknown group IDs,
+duplicate groups, and input preservation.
+
+These offline tests run through npm run test:tools and npm run check.
+
+Run npm run merge:catalogue to additionally verify the actual rarity
+configuration against the generated Pokémon roster.

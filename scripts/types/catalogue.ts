@@ -147,3 +147,20 @@ export interface EncounterGroup {
    */
   entryIds: string[];
 }
+
+/**
+ * Supported encounter rarity classes.
+ *
+ * Numerical weights are configured separately in game.json.
+ */
+export type RarityClass = "common" | "uncommon" | "rare" | "ultraRare";
+
+/**
+ * An encounter group with its configured rarity resolved.
+ *
+ * Every generated group receives an explicit class, even when it
+ * inherits the default from rarity.json.
+ */
+export interface RatedEncounterGroup extends EncounterGroup {
+  rarityClass: RarityClass;
+}

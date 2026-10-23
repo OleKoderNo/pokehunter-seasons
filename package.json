@@ -18,7 +18,7 @@
     "inspect:event-forms": "npm run build:tools && node dist/inspect-event-forms.js",
     "import:reviewed-ghosts": "npm run build:tools && node dist/import-reviewed-ghosts.js",
     "inspect:event-variants": "npm run build:tools && node dist/inspect-event-variants.js",
-    "test:tools": "npm run build:tools && node --test dist/tests/catalogue.test.js dist/tests/event-variants.test.js dist/tests/merge-collection-entries.test.js dist/tests/validate-collection-entry.test.js dist/tests/create-encounter-groups.test.js",
+    "test:tools": "npm run build:tools && node --test dist/tests/catalogue.test.js dist/tests/event-variants.test.js dist/tests/merge-collection-entries.test.js dist/tests/validate-collection-entry.test.js dist/tests/create-encounter-groups.test.js dist/tests/apply-encounter-rarity.test.js",
     "import:event-variants": "npm run build:tools && node dist/import-event-variants.js",
     "merge:catalogue": "npm run build:tools && node dist/merge-catalogue.js",
     "build:overlay": "tsc -p overlay/tsconfig.json",
