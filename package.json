@@ -21,11 +21,14 @@
     "test:tools": "npm run build:tools && node --test dist/tests/catalogue.test.js dist/tests/event-variants.test.js dist/tests/merge-collection-entries.test.js dist/tests/validate-collection-entry.test.js",
     "import:event-variants": "npm run build:tools && node dist/import-event-variants.js",
     "merge:catalogue": "npm run build:tools && node dist/merge-catalogue.js",
+    "build:overlay": "tsc -p overlay/tsconfig.json",
+    "typecheck:overlay": "tsc -p overlay/tsconfig.json --noEmit",
+    "overlay:serve": "npm run build:tools && npm run build:overlay && node dist/serve-overlay.js",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "check": "npm run typecheck && npm run lint && npm run test:tools && npm run format:check"
+    "check": "npm run typecheck && npm run typecheck:overlay && npm run lint && npm run test:tools && npm run format:check"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

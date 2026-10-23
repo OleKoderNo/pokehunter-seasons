@@ -1,5 +1,7 @@
-# Dependencies and compiled JavaScript.
+# Installed dependencies.
 node_modules/
+
+# Compiled JavaScript, including overlay/dist/.
 dist/
 
 # Downloaded API responses.
@@ -10,17 +12,17 @@ cache/
 runtime/
 backups/
 
-# Generated catalogue files use the importer's formatting.
+# Generated data uses the importer's formatting.
 data/
 
 # Managed by npm.
 package-lock.json
 
-# C# build output and machine-specific settings
+# C# build output and machine-specific settings.
 streamerbot/**/bin/
 streamerbot/**/obj/
 streamerbot/StreamerBot.local.props
 
-# Standalone C# test output
+# Standalone C# test output.
 tests/**/bin/
 tests/**/obj/

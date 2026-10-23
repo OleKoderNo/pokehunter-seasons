@@ -2,29 +2,34 @@
   "schemaVersion": 1,
   "enabled": true,
   "layout": {
-    "canvasWidth": 1920,
+    "canvasWidth": 1980,
     "canvasHeight": 1080,
-    "positionX": 960,
-    "positionY": 180,
-    "width": 720,
-    "textGapPixels": 12,
-    "spriteGapPixels": 24
+    "positionX": 990,
+    "positionY": 120,
+    "width": 1400,
+    "textGapPixels": 18,
+    "spriteGapPixels": 32
   },
   "text": {
     "usernameTemplate": "{displayName}",
     "catchTemplate": "Caught a {pokemonName}!",
     "shinyCatchTemplate": "Caught a shiny {pokemonName}!",
     "fontFamily": "Arial, sans-serif",
-    "usernameFontSizePixels": 48,
-    "messageFontSizePixels": 36,
+    "usernameFontSizePixels": 100,
+    "messageFontSizePixels": 72,
     "usernameColor": "#FFFFFF",
     "messageColor": "#FFFFFF",
     "shinyMessageColor": "#FFD700",
     "shadowColor": "#000000",
     "shadowBlurPixels": 6
   },
+  "avatar": {
+    "enabled": true,
+    "sizePixels": 160,
+    "gapPixels": 28
+  },
   "sprite": {
-    "sizePixels": 192,
+    "sizePixels": 440,
     "pixelated": true,
     "fallbackLabel": "Sprite unavailable"
   },

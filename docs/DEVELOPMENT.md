@@ -9,6 +9,9 @@ see [C# Development Setup](CSHARP_DEVELOPMENT.md).
 For SQLite setup and storage behaviour, see
 [SQLite Setup](SQLITE_SETUP.md) and [Database](DATABASE.md).
 
+For the local catch overlay, OBS setup, and Streamer.bot preview action,
+see [Catch Overlay](CATCH_OVERLAY.md).
+
 ## Current implementation status
 
 The TypeScript tools can:
@@ -325,7 +328,7 @@ Different checks provide different kinds of evidence.
 
 ### Combined development checks
 
-Run:
+From the repository root, run:
 
 ```powershell
 npm run check
@@ -333,25 +336,25 @@ npm run check
 
 This runs the following checks in order:
 
-1. TypeScript type checking.
-2. ESLint.
-3. Compilation and standalone converter tests.
-4. Prettier's formatting check.
+1. TypeScript type checking for Node tooling.
+2. TypeScript type checking for the browser overlay.
+3. ESLint for Node tooling and browser overlay source.
+4. Compilation and standalone catalogue-tooling tests.
+5. Prettier's formatting check.
 
 The command stops when a step fails.
 
-It runs standalone converter tests, but does not run the API-backed
-importers or validate generated catalogue files.
+The standalone tests cover catalogue tooling. Overlay behaviour is
+currently verified through the manual Streamer.bot and OBS checklist
+in [Catch Overlay](CATCH_OVERLAY.md).
+
+The command does not run API-backed importers, download Pokémon data,
+or validate generated catalogue files.
 
 The test step generates compiled JavaScript in `dist/`.
-It does not modify source files, download Pokémon data, or write
-collection catalogues.
 
-A successful type check does not establish that external JSON is valid.
-Runtime readers must still validate the fields they use.
-
-Run the relevant importer behaviour checks separately when changing
-conversion or catalogue-generation logic.
+Run the relevant importer commands separately when changing conversion
+or catalogue-generation logic.
 
 ### Existing importer behaviour checks
 

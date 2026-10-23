@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PokéHunter Catch Overlay</title>
+    <link rel="stylesheet" href="/overlay.css" />
+  </head>
+  <body>
+    <main id="stage">
+      <section id="notification" hidden>
+        <div id="identity">
+          <img id="avatar" alt="" />
+          <div id="username"></div>
+        </div>
+
+        <div id="message"></div>
+
+        <div id="sprite-rise">
+          <div id="sprite-bob">
+            <img id="sprite" alt="" />
+            <div id="sprite-fallback" hidden></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="status" hidden></div>
+
+    <script type="module" src="/overlay.js"></script>
+  </body>
+</html>

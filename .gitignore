@@ -5,7 +5,7 @@ cache/
 # Installed dependencies.
 node_modules/
 
-# Compiled JavaScript.
+# Compiled JavaScript, including overlay/dist/.
 dist/
 
 # Local player storage and runtime files.
@@ -14,18 +14,15 @@ runtime/
 # Local database and configuration backups.
 backups/
 
-# C# build output and machine-specific settings
+# C# build output and machine-specific settings.
 streamerbot/**/bin/
 streamerbot/**/obj/
 streamerbot/StreamerBot.local.props
 
-# Standalone C# test output
+# Standalone C# test output.
 tests/**/bin/
 tests/**/obj/
 
 # Generated Pokémon catalogues.
 # Rebuild using the documented npm import commands.
 /data/catalogue/
-
-# Local PokéAPI response cache.
-/cache/
