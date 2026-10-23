@@ -3,6 +3,10 @@
  *
  * Male and female entries are separated when the supported form
  * has a visible gender difference.
+ *
+ * Forms or costumes supporting only one gender use that gender.
+ * "Unspecified" represents a shared identity for Pokémon with both
+ * genders but no supported visible gender difference.
  */
 export type CollectionGender = "male" | "female" | "genderless" | "unspecified";
 
@@ -65,7 +69,11 @@ export interface CollectionEntry {
   /** Whether the species is classified as Mythical. */
   isMythical: boolean;
 
-  /** Groups entries for encounter selection before variant selection. */
+  /**
+   * References the encounter group selected before variant selection.
+   *
+   * Sharing a group does not make every variant eligible to be caught.
+   */
   encounterGroupId: string;
 
   /** Identifier for the specific form represented by this entry. */
@@ -109,4 +117,33 @@ export interface CollectionEntry {
 
   /** Cry references used by the optional catch overlay. */
   cries: CryReferences;
+}
+
+/**
+ * One Pokémon group used during encounter selection.
+ *
+ * Collection variants are referenced by their permanent entry IDs.
+ * Having more variants must not automatically increase the group's
+ * chance of being selected.
+ *
+ * Eligibility is evaluated from the referenced entries at runtime.
+ * This record does not grant access to locked forms or costumes.
+ */
+export interface EncounterGroup {
+  /** Stable ID already referenced by CollectionEntry.encounterGroupId. */
+  id: string;
+
+  /** Species shared by every entry in this group. */
+  speciesId: string;
+
+  /** National Pokédex number shared by this group's entries. */
+  nationalDexNumber: number;
+
+  /**
+   * All collection identities belonging to this group.
+   *
+   * These include normal and shiny entries. Runtime selection must
+   * filter them for the rolled shiny state and current eligibility.
+   */
+  entryIds: string[];
 }

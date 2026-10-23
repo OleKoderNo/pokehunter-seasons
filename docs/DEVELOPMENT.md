@@ -296,6 +296,25 @@ Do not edit cached responses to customize the game.
 Game-specific decisions belong in reviewed conversion rules or future
 override configuration.
 
+## Encounter-group generation
+
+Run `npm run merge:catalogue` to rebuild the merged intermediate
+catalogue and its encounter groups.
+
+The merge validates collection entries and shiny counterparts before
+building groups. Nothing is saved until these checks succeed.
+
+`scripts/lib/create-encounter-groups.ts` builds groups from the entries'
+existing group IDs. It does not assign rarity or decide which Pokémon
+are currently obtainable.
+
+`scripts/tests/create-encounter-groups.test.ts` verifies variant grouping,
+separate regional-form groups, duplicate rejection, species consistency,
+deterministic ordering, and preservation of input records.
+
+These tests run through `npm run test:tools` and `npm run check`.
+They use local fixtures and do not require PokéAPI access.
+
 ## File responsibilities
 
 | File                                       | Responsibility                                                 |

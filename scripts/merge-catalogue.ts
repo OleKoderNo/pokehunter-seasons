@@ -5,11 +5,19 @@ import { mergeCollectionEntries } from "./lib/merge-collection-entries.js";
 import type { CollectionSource } from "./lib/merge-collection-entries.js";
 import { validateCollectionEntry } from "./lib/validate-collection-entry.js";
 import { validateEntryCounterparts } from "./lib/validate-entry-counterparts.js";
+import { createEncounterGroups } from "./lib/create-encounter-groups.js";
 import type { CollectionEntry } from "./types/catalogue.js";
 
+// The compiled script runs from dist/, one level below the project root.
 const DIRECTORY = new URL("../data/catalogue/", import.meta.url);
 const OUTPUT_FILE = new URL("merged-entries.json", DIRECTORY);
 
+/**
+ * Reviewed intermediate catalogues included in this merge.
+ *
+ * Event sources must identify the expected event. Being included here
+ * does not make every entry eligible during a season or event.
+ */
 const INPUTS = [
   { filename: "generation-1.json", eventId: null },
   { filename: "halloween-2026-families.json", eventId: "halloween-2026" },
@@ -57,6 +65,7 @@ async function readSource(
   for (let index = 0; index < document.entries.length; index += 1) {
     const entry: unknown = document.entries[index];
 
+    // Validation narrows unknown JSON to a checked CollectionEntry.
     validateCollectionEntry(entry, `${filename}.entries[${index}]`);
     entries.push(entry);
   }
@@ -64,6 +73,12 @@ async function readSource(
   return { name: filename, entries };
 }
 
+/**
+ * Combines reviewed entry sources and builds their encounter groups.
+ *
+ * This remains an intermediate catalogue. Runtime eligibility,
+ * rarity assignment, and catching logic are separate responsibilities.
+ */
 async function main(): Promise<void> {
   const sources: CollectionSource[] = [];
 
@@ -71,18 +86,26 @@ async function main(): Promise<void> {
     sources.push(await readSource(input.filename, input.eventId));
   }
 
+  // Identical entries shared by sources are merged. Conflicting entries
+  // with the same collection identity must be rejected.
   const result = mergeCollectionEntries(sources);
+
+  // Every collection identity must have its corresponding shiny state.
   validateEntryCounterparts(result.entries);
+
+  // Build groups from the reviewed mappings already stored on entries.
+  const encounterGroups = createEncounterGroups(result.entries);
 
   const output = {
     schemaVersion: 1,
     sampleOnly: true,
     scope: "merged-collection-entries",
     sources: sources.map((source) => source.name),
+    encounterGroups,
     entries: result.entries,
   };
 
-  // Nothing is written until every source and merged counterpart passes.
+  // Nothing is written until entries, counterparts, and groups pass.
   await mkdir(DIRECTORY, { recursive: true });
 
   const temporaryFile = new URL(
@@ -91,6 +114,7 @@ async function main(): Promise<void> {
   );
 
   try {
+    // Write a complete temporary file before replacing the output.
     await writeFile(
       temporaryFile,
       `${JSON.stringify(output, null, 2)}\n`,
@@ -99,6 +123,7 @@ async function main(): Promise<void> {
 
     await rename(temporaryFile, OUTPUT_FILE);
   } finally {
+    // Remove a leftover temporary file if writing or replacement failed.
     await rm(temporaryFile, { force: true });
   }
 
@@ -113,6 +138,7 @@ async function main(): Promise<void> {
     inputEntries: result.inputEntries,
     duplicatesRemoved: result.duplicatesRemoved,
     mergedEntries: result.entries.length,
+    encounterGroups: encounterGroups.length,
     normalEntries: result.entries.filter((entry) => !entry.isShiny).length,
     shinyEntries: result.entries.filter((entry) => entry.isShiny).length,
     missingSpriteReferences: result.entries.filter(
@@ -121,7 +147,10 @@ async function main(): Promise<void> {
   });
 
   console.log("Saved data/catalogue/merged-entries.json");
-  console.log("Entry merge passed. This is not yet the runtime catalogue.");
+  console.log(
+    "Entry merge and encounter grouping passed. " +
+      "This is not yet the runtime catalogue.",
+  );
 }
 
 main().catch((error: unknown) => {
