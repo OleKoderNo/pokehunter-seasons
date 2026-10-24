@@ -56,11 +56,6 @@ namespace PokeHunter.Configuration
                 "redemption.cost must be greater than zero."
             );
 
-            Require(
-                redemption.PerUserCooldownSeconds >= 0,
-                "redemption.perUserCooldownSeconds must be zero or greater."
-            );
-
             // These settings will be used as divisors.
             Require(
                 shiny.BaseOddsDenominator > 0,

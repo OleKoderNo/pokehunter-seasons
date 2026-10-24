@@ -55,12 +55,11 @@ for checks. The runtime must still retain the index and manage pool refreshes.
 ## Intended redemption flow — not yet integrated
 
 1. Identify the viewer and redemption using stable Twitch IDs.
-2. Detect previously processed deliveries; check cooldown and availability.
-3. Capture acceptance time and a consistent season, event, catalogue, and settings snapshot.
-4. Read ownership/progress and calculate attempts and shiny probability.
-5. Roll encounters using the [game rules](GAME_RULES.md).
-6. Commit the outcome, catch if any, retry state, and related records atomically.
-7. Announce committed results and queue successful-catch notifications.
+2. Detect previously processed deliveries; check availability.3. Capture acceptance time and a consistent season, event, catalogue, and settings snapshot.
+3. Read ownership/progress and calculate attempts and shiny probability.
+4. Roll encounters using the [game rules](GAME_RULES.md).
+5. Commit the outcome, catch if any, retry state, and related records atomically.
+6. Announce committed results and queue successful-catch notifications.
 
 Viewer-specific filtering must not modify shared candidate pools. Owned regular
 entries remain possible duplicates inside incomplete categories.
@@ -77,7 +76,7 @@ entries remain possible duplicates inside incomplete categories.
   and use bounded handling for a busy database.
 - Never wait for animations, audio, or network calls inside a database transaction.
 - A short processing queue is acceptable; overlay playback must not block other viewers.
-- Restarting must preserve collections, retry streaks, and cooldowns.
+- Restarting must preserve collections and retry streaks
 
 ## Recovery and presentation — remaining design work
 

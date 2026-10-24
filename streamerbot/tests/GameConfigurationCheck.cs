@@ -85,9 +85,7 @@ public class CPHInline
             );
 
             CPH.LogInfo(
-                "[PokéHunter] Reward cost: " + game.Redemption.Cost +
-                " | Cooldown: " +
-                game.Redemption.PerUserCooldownSeconds + " seconds"
+                "[PokéHunter] Reward cost: " + game.Redemption.Cost
             );
 
             CPH.LogInfo(

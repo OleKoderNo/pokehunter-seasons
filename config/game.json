@@ -1,8 +1,7 @@
 {
   "schemaVersion": 1,
   "redemption": {
-    "cost": 500,
-    "perUserCooldownSeconds": 60
+    "cost": 500
   },
   "shiny": {
     "baseOddsDenominator": 8192,

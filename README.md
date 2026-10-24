@@ -19,12 +19,12 @@ Working foundations:
 - An OBS catch-overlay preview with avatar, sprite animation, cry, and notification queue.
 
 Still to build: random encounter selection, viewer ownership filtering, catch
-storage, shiny/retry processing, cooldown enforcement, and live redemption integration.
+storage, shiny/retry processing and live redemption integration.
 The website/leaderboard and December content are later work.
 
 ## The game
 
-- **500 channel points**, a **60-second per-viewer cooldown**, and no automatic refunds.
+- **500 channel points** and no automatic refunds.
 - At most one catch per redemption; fully failed redemptions earn another attempt next time.
 - Separate collectibles for normal/shiny states, supported forms, costumes, and visible genders.
 - Annual seasons by default; old catches remain in the National Dex.

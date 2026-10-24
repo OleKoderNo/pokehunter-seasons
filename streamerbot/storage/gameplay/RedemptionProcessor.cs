@@ -14,7 +14,7 @@ namespace PokeHunter.Gameplay
     ///
     /// The caller supplies categories prepared for the accepted season
     /// and event. This class does not select schedules, register trainers,
-    /// enforce cooldowns, or send chat/overlay notifications.
+    /// or send chat/overlay notifications.
     /// </summary>
     public sealed class RedemptionProcessor
     {

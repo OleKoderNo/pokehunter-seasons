@@ -17,12 +17,6 @@ internal static class GameConfigurationChecks
         GameConfig config = GameConfigLoader.Load(filePath);
 
         Console.WriteLine("PASS: The real game configuration loaded.");
-        Console.WriteLine(
-            "Reward cost: " + config.Redemption.Cost +
-            " | Cooldown: " +
-            config.Redemption.PerUserCooldownSeconds +
-            " seconds"
-        );
 
         CheckZeroMilestoneRejected(filePath, temporaryFolder);
     }

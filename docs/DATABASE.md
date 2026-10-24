@@ -264,7 +264,7 @@ It uses controlled randomness and a temporary database.
 Connect the processor to live Twitch redemption delivery, including
 trainer registration, schedule selection, and encounter-category preparation.
 
-Cooldown enforcement, concurrent rolls, interrupted-session recovery,
+Concurrent rolls, interrupted-session recovery,
 and reliable notification delivery remain to be implemented.
 
 Announce catches only after commit. A technical error or stale-state
@@ -273,8 +273,8 @@ conflict must not become an ordinary gameplay failure.
 `WasCreated` helps identify repeated processing but does not guarantee
 exactly-once chat or overlay delivery.
 
-Next: implement the live redemption adapter and per-viewer cooldown,
-then connect committed results to chat and the overlay.
+Next: implement the live redemption adapter, then connect committed
+results to chat and the overlay.
 
 ## Migration and backup policy
 

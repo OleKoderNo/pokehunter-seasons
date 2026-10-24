@@ -154,7 +154,7 @@ public class CPHInline
 
             // Reuse one processor and one prepared eligibility context.
             // Every fixture uses the same fixed acceptance time.
-            // Cooldowns are deliberately outside this test's scope.
+            // Separate redemption IDs may be processed without a timed delay.
             Func<string, RedemptionSaveResult> process =
                 redemptionId => processor.Process(
                     redemptionId,

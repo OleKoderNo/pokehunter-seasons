@@ -7,7 +7,7 @@ Use this guide to edit settings. [Game Rules](GAME_RULES.md) owns gameplay behav
 
 | File                        | Controls                                                       | How changes are applied today                                 |
 | --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
-| `config/game.json`          | Cost, cooldown, shiny bonuses, category/rarity weights         | Configuration checks read it; live redeem integration remains |
+| `config/game.json`          | Cost, shiny bonuses, category/rarity weights                   | Configuration checks read it; live redeem integration remains |
 | `config/seasons.json`       | Explicit season schedule and generation unlocks                | Configuration checks/selectors and eligibility builder        |
 | `config/events.json`        | Event schedule, selectors, generation exceptions, Event weight | Configuration checks/selectors and eligibility builder        |
 | `config/rarity.json`        | Rarity class assigned to each encounter group                  | Rerun `npm run merge:catalogue`                               |
@@ -33,7 +33,6 @@ Paths below are relative to the root of `game.json`.
 | Property                                             | Initial value | Meaning                                                                                        |
 | ---------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------- |
 | `redemption.cost`                                    | 500           | Price for the entire redemption, including extra attempts                                      |
-| `redemption.perUserCooldownSeconds`                  | 60            | Per-viewer delay from accepted redemption                                                      |
 | `shiny.baseOddsDenominator`                          | 8192          | Base probability is 1 divided by this positive integer                                         |
 | `shiny.collectionBonus.uniqueEntriesPerMilestone`    | 50            | Combined lifetime unique normal + shiny milestone size                                         |
 | `shiny.collectionBonus.bonusPerUniqueEntryMilestone` | 0.1           | Additive bonus per complete combined milestone                                                 |
@@ -59,7 +58,7 @@ roll. This is neither 4% nor a guaranteed fourfold increase for each event Poké
 Actual group odds depend on the selected category and its members.
 
 The configured cost must match the Twitch reward manually until synchronization exists.
-The reward description must explain per-user cooldown and no automatic refunds.
+The reward description must explain that unsuccessful encounters are not refunded.
 
 ## Seasons: customize in seven steps
 
@@ -147,7 +146,7 @@ an automatic supported update to the stored record.
 Do not rename/reuse historical IDs or delete archives. An explicit editing/migration
 workflow is required for already-stored changes; it is not implemented. Back up player
 data and configuration before future live schedule changes. Editing JSON does not move
-saved catches. Acceptance time will bind a redemption to its season; cooldown is independent.
+saved catches. Acceptance time will bind a redemption to its season.
 
 ## Events: customize in six steps
 

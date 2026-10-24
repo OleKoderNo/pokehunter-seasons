@@ -17,13 +17,12 @@ namespace PokeHunter.Configuration
     }
 
     /// <summary>
-    /// Settings for the channel-point reward and per-viewer cooldown.
+    /// Settings for the channel-point reward.
+    /// There is no per-viewer gameplay cooldown.
     /// </summary>
     public sealed class RedemptionConfig
     {
         public int Cost { get; set; }
-
-        public int PerUserCooldownSeconds { get; set; }
     }
 
     /// <summary>

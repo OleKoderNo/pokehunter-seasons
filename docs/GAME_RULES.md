@@ -5,15 +5,15 @@ see the [README](../README.md) for status and [Configuration](CONFIGURATION.md) 
 
 ## Redemption and collection basics
 
-| Rule                | Behavior                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------- |
-| Cost                | 500 channel points covers every attempt in one redemption                                         |
-| Catch limit         | At most one successful catch per redemption                                                       |
-| Cooldown            | 60 seconds per viewer, beginning at acceptance; other viewers can redeem                          |
-| Usage limit         | No per-stream limit beyond the per-viewer cooldown                                                |
-| Refunds             | No automatic refunds, including duplicates, empty pools, cooldown rejections, or technical errors |
-| Seasonal uniqueness | Each collectible entry can be caught once per season                                              |
-| Lifetime history    | Every successful catch remains recorded across seasons                                            |
+| Rule                 | Behavior                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------- |
+| Cost                 | 500 channel points covers every attempt in one redemption                                         |
+| Catch limit          | At most one successful catch per redemption                                                       |
+| Redemption frequency | No per-viewer gameplay cooldown; each distinct redemption receives its own session.               |
+| Usage limit          | No per-stream limit beyond the per-viewer cooldown                                                |
+| Refunds              | No automatic refunds, including duplicates, empty pools, cooldown rejections, or technical errors |
+| Seasonal uniqueness  | Each collectible entry can be caught once per season                                              |
+| Lifetime history     | Every successful catch remains recorded across seasons                                            |
 
 Use Twitch user IDs for identity and cooldowns. Renaming a viewer must not reset progress.
 A cooldown rejection performs no rolls, does not alter the streak, and does not extend
