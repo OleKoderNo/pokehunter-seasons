@@ -9,7 +9,7 @@ namespace PokeHunter.Tests.Catalogue
     internal static class Program
     {
         /// <summary>
-        /// Runs catalogue loading and rejection checks.
+        /// Runs catalogue, encounter, and subscription-mapping checks.
         ///
         /// Returns zero when every check passes, or one on failure.
         /// The original catalogue is never written to.
@@ -221,14 +221,17 @@ namespace PokeHunter.Tests.Catalogue
 
                 RunMissingMediaCheck(original, temporaryDirectory);
 
-                // Test reusable lookups without removing any existing loader checks.
+                // Keep every existing check active as the project grows.
                 CatalogueIndexChecks.Run(catalogue);
                 EligibilityChecks.Run(catalogue);
                 WeightedSelectionChecks.Run();
                 WeightedRollerChecks.Run();
                 EncounterGroupSelectionChecks.Run(catalogue);
+
                 ShinyProbabilityChecks.Run();
                 ShinyRollerChecks.Run();
+                TwitchSubscriptionMappingChecks.Run();
+
                 EncounterOwnershipChecks.Run(catalogue);
                 EncounterVariantChecks.Run();
                 EncounterAttemptChecks.Run(catalogue);
