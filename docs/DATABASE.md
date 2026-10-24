@@ -161,6 +161,33 @@ repository. SQL currently requires nonempty snapshot/timestamp text; it does not
 snapshot JSON, catalogue metadata, timestamp formats, or consistency between an entry ID
 and its shiny flag. Those checks belong in the storage implementation.
 
+## Collection reader
+
+`CollectionRepository.ReadSnapshot(twitchUserId, seasonId)` reads:
+
+- Successful collection entry IDs in the requested season.
+- The season's consecutive-failure streak, defaulting to zero when no progress row exists.
+- Lifetime unique normal and shiny entry counts across all seasons.
+
+All reads use one database transaction so the values describe a consistent
+database snapshot. Unknown trainers or seasons are rejected.
+
+Season IDs follow the same case-insensitive rules as `SeasonRepository`,
+including international characters. Returned snapshots preserve the stored
+season ID and expose a copied, read-only entry list.
+
+Repeat catches across seasons count once toward lifetime uniqueness.
+Failed redemptions do not contribute to ownership or collection bonuses.
+Conflicting shiny flags for the same permanent entry ID are rejected.
+
+`CollectionStorageCheck` verifies these behaviours using a temporary
+database. It also checks trainer isolation and that later database writes
+do not change an already-returned snapshot.
+
+A snapshot can become outdated after another redemption commits.
+The future save workflow must guard against stale state; reading a
+snapshot does not reserve a redemption.
+
 ## Remaining storage work
 
 Save the result and progress update atomically, using parameterized SQL and validated
