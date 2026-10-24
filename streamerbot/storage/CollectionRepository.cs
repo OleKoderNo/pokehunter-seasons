@@ -42,6 +42,84 @@ namespace PokeHunter.Storage
         }
 
         /// <summary>
+        /// Reads progress for chat without creating trainers or seasons.
+        /// Missing records represent zero progress.
+        /// </summary>
+        public CollectionSnapshot ReadProgressSnapshot(
+            string twitchUserId,
+            string seasonId
+        )
+        {
+            RequireText(twitchUserId, nameof(twitchUserId));
+            RequireText(seasonId, nameof(seasonId));
+
+            using (var connection = OpenConnection(true))
+            {
+                Execute(connection, "BEGIN;");
+
+                try
+                {
+                    string canonicalSeason = ResolveSeasonId(
+                        connection,
+                        seasonId,
+                        true
+                    );
+
+                    List<string> owned = ReadOwned(
+                        connection,
+                        twitchUserId,
+                        canonicalSeason
+                    );
+
+                    int streak = ReadStreak(
+                        connection,
+                        twitchUserId,
+                        canonicalSeason
+                    );
+
+                    int normal;
+                    int shiny;
+
+                    ReadLifetimeCounts(
+                        connection,
+                        twitchUserId,
+                        out normal,
+                        out shiny
+                    );
+
+                    var snapshot = new CollectionSnapshot(
+                        twitchUserId,
+                        canonicalSeason,
+                        owned,
+                        streak,
+                        normal,
+                        shiny
+                    );
+
+                    Execute(connection, "COMMIT;");
+                    return snapshot;
+                }
+                catch (Exception readException)
+                {
+                    try
+                    {
+                        Execute(connection, "ROLLBACK;");
+                    }
+                    catch (Exception rollbackException)
+                    {
+                        throw new AggregateException(
+                            "Reading progress failed, and rollback also failed.",
+                            readException,
+                            rollbackException
+                        );
+                    }
+
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
         /// Reads ownership, progress, and lifetime unique counts in one
         /// read transaction. Unknown trainers/seasons are setup errors.
         /// This snapshot does not reserve a redemption or lock future rolls.
@@ -166,7 +244,11 @@ namespace PokeHunter.Storage
         /// the stored spelling in indexed catch/progress queries.
         /// Only the small season registry is scanned, not catch history.
         /// </summary>
-        private static string ResolveSeasonId(SQLiteConnection connection, string requested)
+        private static string ResolveSeasonId(
+            SQLiteConnection connection,
+            string requested,
+            bool allowMissing = false
+        )
         {
             string found = null;
             using (var command = connection.CreateCommand())
@@ -191,8 +273,16 @@ namespace PokeHunter.Storage
             }
             if (found == null)
             {
-                throw new InvalidDataException("Register the season before reading collection state.");
+                if (allowMissing)
+                {
+                    return requested;
+                }
+
+                throw new InvalidDataException(
+                    "Register the season before reading collection state."
+                );
             }
+
             return found;
         }
 
