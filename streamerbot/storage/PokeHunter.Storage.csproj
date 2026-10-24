@@ -37,6 +37,15 @@
             <HintPath>$(StreamerBotPath)/dlls/System.Data.SQLite.dll</HintPath>
             <Private>false</Private>
         </Reference>
+
+        <!-- Validate saved catch metadata against the shared catalogue types. -->
+        <ProjectReference Include="../configuration/PokeHunter.Core.csproj" />
+
+        <!-- Use the JSON library supplied with Streamer.bot. -->
+        <Reference Include="Newtonsoft.Json">
+            <HintPath>$(StreamerBotPath)/Newtonsoft.Json.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
     </ItemGroup>
 
     <!-- Report setup problems before trying to resolve references. -->

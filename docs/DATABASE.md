@@ -188,18 +188,66 @@ A snapshot can become outdated after another redemption commits.
 The future save workflow must guard against stale state; reading a
 snapshot does not reserve a redemption.
 
+## Redemption repository
+
+`RedemptionRepository.FindById` returns a saved redemption or null when
+the ID is unknown. Database errors are reported as exceptions.
+
+`RedemptionRepository.Save` saves a completed result and updates seasonal
+progress in one immediate transaction.
+
+Before inserting, it:
+
+- Checks whether the redemption ID already exists.
+- Verifies that an existing result belongs to the same trainer and season.
+- Compares current collection state with the snapshot used for rolling.
+- Checks that acceptance occurred within the stored season boundaries.
+- Validates caught-entry metadata against the supplied catalogue.
+- Rejects an entry already owned in that season.
+
+Repeated delivery returns the original result without changing newer
+progress. `RedemptionSaveResult.WasCreated` distinguishes a new save
+from an existing result.
+
+Successful results reset the failure streak. Failed results exhaust
+their attempt budget and increment the streak once. Both the result
+and progress update commit together; errors trigger rollback.
+
+Stored catches contain canonical serialized catalogue metadata.
+Encounter eligibility remains the encounter engine's responsibility.
+
+### Verified save checks
+
+`RedemptionStorageCheck` uses a temporary database to verify:
+
+- Successful and failed saves.
+- Catch metadata read through another repository instance.
+- Repeated deliveries preserving newer progress.
+- Stale collection state rejected without changes.
+- A deliberately failed progress update rolling back the catch insert.
+- Successful retry after removing that deliberate failure.
+- Catalogue metadata mismatches rejected.
+- Seasonal duplicates and redemption IDs reused by another trainer rejected.
+- Cross-season recatches and separate shiny identities counted correctly.
+
+These checks do not yet exercise simultaneous save operations from
+multiple threads or processes.
+
 ## Remaining storage work
 
-Save the result and progress update atomically, using parameterized SQL and validated
-session outcomes. Repeated delivery of a redemption must return its saved result without
-rolling again. A uniqueness constraint is only one part of that workflow.
+Connect the encounter-session result to the save request and coordinate
+live redemption processing.
 
-Cooldown enforcement, concurrent redemptions, interrupted-session recovery, catalogue
-compatibility, and notification delivery state remain to be implemented. Announce a
-catch only after the database commit. Technical errors must not be recorded as ordinary
-gameplay failures. Shiny protection remains session-local.
+Cooldown enforcement, concurrent rolls, interrupted-session recovery,
+and reliable notification delivery remain to be implemented.
 
-See [Architecture](ARCHITECTURE.md) for the wider recovery and concurrency plan.
+Announce catches only after commit. A technical error or stale-state
+conflict must not become an ordinary gameplay failure.
+
+`WasCreated` helps identify repeated processing but does not guarantee
+exactly-once chat or overlay delivery.
+
+Before live use, implement and verify backup and restore.
 
 ## Migration and backup policy
 
@@ -212,5 +260,5 @@ player data, relevant configuration, and catalogue definitions used by catches. 
 supported SQLite backup mechanism or close database access before copying files; a live
 main-file-only copy can omit journal/WAL state. Keep another backup outside the streaming PC.
 
-Next: implement the redemption repository, verify atomic saves and repeat-delivery
-handling, then connect it to the encounter engine.
+Next: connect encounter sessions to the repository and implement
+the live redemption workflow.

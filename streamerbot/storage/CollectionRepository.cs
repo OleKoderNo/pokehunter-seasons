@@ -46,45 +46,106 @@ namespace PokeHunter.Storage
         /// read transaction. Unknown trainers/seasons are setup errors.
         /// This snapshot does not reserve a redemption or lock future rolls.
         /// </summary>
-        public CollectionSnapshot ReadSnapshot(string twitchUserId, string seasonId)
+        /// <summary>
+        /// Reads collection state in one read transaction.
+        /// Does not reserve a redemption or prevent later changes.
+        /// </summary>
+        public CollectionSnapshot ReadSnapshot(
+            string twitchUserId,
+            string seasonId
+        )
         {
             RequireText(twitchUserId, nameof(twitchUserId));
             RequireText(seasonId, nameof(seasonId));
 
             using (var connection = OpenConnection(true))
             {
-                // A deferred read transaction keeps every SELECT on the
-                // same database snapshot, without reserving a writer slot.
                 Execute(connection, "BEGIN;");
+
                 try
                 {
-                    RequireTrainer(connection, twitchUserId);
-                    string canonicalSeason = ResolveSeasonId(connection, seasonId);
-                    List<string> owned = ReadOwned(connection, twitchUserId, canonicalSeason);
-                    int streak = ReadStreak(connection, twitchUserId, canonicalSeason);
-                    int normal;
-                    int shiny;
-                    ReadLifetimeCounts(connection, twitchUserId, out normal, out shiny);
-
-                    var snapshot = new CollectionSnapshot(
-                        twitchUserId, canonicalSeason, owned, streak, normal, shiny
+                    CollectionSnapshot snapshot = ReadSnapshot(
+                        connection,
+                        twitchUserId,
+                        seasonId
                     );
+
                     Execute(connection, "COMMIT;");
                     return snapshot;
                 }
                 catch (Exception readException)
                 {
-                    try { Execute(connection, "ROLLBACK;"); }
+                    try
+                    {
+                        Execute(connection, "ROLLBACK;");
+                    }
                     catch (Exception rollbackException)
                     {
                         throw new AggregateException(
                             "Reading collection state failed, and rollback also failed.",
-                            readException, rollbackException
+                            readException,
+                            rollbackException
                         );
                     }
+
                     throw;
                 }
             }
+        }
+
+        /// <summary>
+        /// Reads using a connection and transaction owned by the caller.
+        ///
+        /// Internal storage code uses this during saving so the collection
+        /// check and subsequent writes cannot be separated by another writer.
+        /// This method does not begin, commit, or roll back a transaction.
+        /// </summary>
+        internal static CollectionSnapshot ReadSnapshot(
+            SQLiteConnection connection,
+            string twitchUserId,
+            string seasonId
+        )
+        {
+            RequireText(twitchUserId, nameof(twitchUserId));
+            RequireText(seasonId, nameof(seasonId));
+
+            RequireTrainer(connection, twitchUserId);
+
+            string canonicalSeason = ResolveSeasonId(
+                connection,
+                seasonId
+            );
+
+            List<string> owned = ReadOwned(
+                connection,
+                twitchUserId,
+                canonicalSeason
+            );
+
+            int streak = ReadStreak(
+                connection,
+                twitchUserId,
+                canonicalSeason
+            );
+
+            int normal;
+            int shiny;
+
+            ReadLifetimeCounts(
+                connection,
+                twitchUserId,
+                out normal,
+                out shiny
+            );
+
+            return new CollectionSnapshot(
+                twitchUserId,
+                canonicalSeason,
+                owned,
+                streak,
+                normal,
+                shiny
+            );
         }
 
         private static void RequireTrainer(SQLiteConnection connection, string userId)
