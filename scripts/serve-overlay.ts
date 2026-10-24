@@ -65,7 +65,11 @@ const server = createServer((request, response) => {
       return;
     }
 
-    if (request.method === "POST" && url.pathname === "/test-catch") {
+    if (
+      request.method === "POST" &&
+      (url.pathname === "/test-catch" || url.pathname === "/catch")
+    ) {
+      const isTest = url.pathname === "/test-catch";
       const origin = request.headers.origin;
 
       if (origin !== undefined && origin !== ORIGIN) {
@@ -107,8 +111,12 @@ const server = createServer((request, response) => {
       if (
         !isJsonObject(payload) ||
         payload.schemaVersion !== 1 ||
-        payload.isTest !== true ||
-        payload.login !== "kapteinole" ||
+        payload.isTest !== isTest ||
+        typeof payload.login !== "string" ||
+        !/^[a-zA-Z0-9_]{1,25}$/.test(payload.login) ||
+        (isTest && payload.login !== "kapteinole") ||
+        (!isTest && !validText(payload.redemptionId)) ||
+        !validText(payload.entryId) ||
         typeof payload.userId !== "string" ||
         !/^\d+$/.test(payload.userId) ||
         !validText(payload.displayName) ||
@@ -120,7 +128,7 @@ const server = createServer((request, response) => {
         !validAsset(payload.cries.latest) ||
         !validAsset(payload.cries.legacy)
       ) {
-        response.writeHead(400).end("Invalid KapteinOle test notification.");
+        response.writeHead(400).end("Invalid catch notification.");
         return;
       }
 
@@ -132,7 +140,12 @@ const server = createServer((request, response) => {
       await mkdir(new URL("runtime/", ROOT), { recursive: true });
 
       await appendFile(
-        new URL("runtime/overlay-tests.jsonl", ROOT),
+        new URL(
+          isTest
+            ? "runtime/overlay-tests.jsonl"
+            : "runtime/overlay-catches.jsonl",
+          ROOT,
+        ),
         `${JSON.stringify(record)}\n`,
         "utf8",
       );

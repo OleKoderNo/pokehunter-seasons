@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
+using System.Text;
+using Newtonsoft.Json;
 using PokeHunter.Catalogue;
 using PokeHunter.Configuration;
 using PokeHunter.Encounters;
@@ -56,10 +59,6 @@ public class CPHInline
             "pokeHunterProjectRoot"
         );
 
-        string allowedUserId = RequireStringArgument(
-            "pokeHunterTestUserId"
-        );
-
         string expectedRewardId = RequireStringArgument(
             "pokeHunterRewardId"
         );
@@ -81,19 +80,6 @@ public class CPHInline
             );
         }
 
-        if (!string.Equals(
-            userId,
-            allowedUserId,
-            StringComparison.Ordinal
-        ))
-        {
-            CPH.LogWarn(
-                "[PokéHunter] Redemption ignored: this test action " +
-                "is restricted to its configured Twitch user ID."
-            );
-
-            return false;
-        }
 
         if (!Path.IsPathRooted(projectRoot))
         {
@@ -274,7 +260,212 @@ public class CPHInline
             databasePath
         );
 
+        // Only the delivery that created the stored result announces it.
+        // Repeated deliveries return their original result without notifying.
+        if (result.WasCreated)
+        {
+            try
+            {
+                NotifySavedResult(
+                    result.Redemption,
+                    loginName,
+                    displayName
+                );
+            }
+            catch (Exception exception)
+            {
+                CPH.LogError(
+                    "[PokéHunter] Result was saved, but notification " +
+                    "preparation failed for " + redemptionId + ": " +
+                    exception
+                );
+            }
+        }
+
         return true;
+    }
+
+    /// <summary>
+    /// Announces an already committed result.
+    /// Presentation failures never change ownership or retry progress.
+    /// </summary>
+    private void NotifySavedResult(
+        StoredRedemption result,
+        string loginName,
+        string displayName
+    )
+    {
+        if (!result.Succeeded)
+        {
+            long nextAttempts = (long)result.NextFailureStreak + 1;
+
+            TrySendChat(
+                "@" + loginName +
+                " No new Pokémon this time after " +
+                result.AttemptsUsed +
+                (result.AttemptsUsed == 1 ? " attempt." : " attempts.") +
+                " Your next redemption has " + nextAttempts +
+                (nextAttempts == 1 ? " attempt!" : " attempts!"),
+                result.RedemptionId
+            );
+
+            return;
+        }
+
+        // This catalogue is the same instance used for the new catch.
+        // Historical redelivery returns earlier and never reaches here.
+        CatalogueEntry entry = catalogue.FindEntry(result.EntryId);
+
+        if (entry == null)
+        {
+            throw new InvalidDataException(
+                "The saved catch is missing from the loaded catalogue: " +
+                result.EntryId + "."
+            );
+        }
+
+        string pokemonName = entry.DisplayName;
+
+        if (!string.IsNullOrWhiteSpace(entry.FormName))
+        {
+            pokemonName += " (" + entry.FormName + ")";
+        }
+
+        string genderLabel = entry.Gender == "male"
+            ? "male"
+            : entry.Gender == "female"
+                ? "female"
+                : "genderless";
+
+        string overlayName = pokemonName + " (" + genderLabel + ")";
+
+        TrySendChat(
+            "@" + loginName + " caught " +
+            (entry.IsShiny ? "a SHINY " : "a ") +
+            overlayName + "! Attempts: " +
+            result.AttemptsUsed + "/" + result.AvailableAttempts + ".",
+            result.RedemptionId
+        );
+
+        // Avatar lookup is optional and must belong to this redeemer.
+        // Missing artwork does not prevent the catch notification.
+        string profileImageUrl = ReadProfileImageUrl(result.TwitchUserId);
+
+        var payload = new
+        {
+            schemaVersion = 1,
+            isTest = false,
+            redemptionId = result.RedemptionId,
+            login = loginName,
+            userId = result.TwitchUserId,
+            displayName = displayName,
+            profileImageUrl = profileImageUrl,
+            entryId = entry.Id,
+            pokemonName = overlayName,
+            isShiny = entry.IsShiny,
+            spriteUrl = entry.Sprite.Url,
+            cries = new
+            {
+                latest = entry.Cries.Latest,
+                legacy = entry.Cries.Legacy
+            }
+        };
+
+        try
+        {
+            PostCatchNotification(payload);
+
+            CPH.LogInfo(
+                "[PokéHunter] Overlay accepted notification for " +
+                result.RedemptionId + "."
+            );
+        }
+        catch (Exception exception)
+        {
+            CPH.LogError(
+                "[PokéHunter] Catch remains saved. Overlay notification " +
+                "failed for " + result.RedemptionId + ": " +
+                exception.Message
+            );
+        }
+    }
+
+    private void TrySendChat(string message, string redemptionId)
+    {
+        try
+        {
+            CPH.SendMessage(message, true, true);
+        }
+        catch (Exception exception)
+        {
+            CPH.LogError(
+                "[PokéHunter] Result remains saved. Chat notification " +
+                "failed for " + redemptionId + ": " +
+                exception.Message
+            );
+        }
+    }
+
+    private string ReadProfileImageUrl(string userId)
+    {
+        string targetUserId;
+        string imageUrl;
+
+        if (!CPH.TryGetArg<string>("targetUserId", out targetUserId) ||
+            !string.Equals(targetUserId, userId, StringComparison.Ordinal) ||
+            !CPH.TryGetArg<string>(
+                "targetUserProfileImageUrl",
+                out imageUrl
+            ))
+        {
+            return null;
+        }
+
+        Uri parsed;
+
+        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out parsed) ||
+            (parsed.Scheme != Uri.UriSchemeHttps &&
+             parsed.Scheme != Uri.UriSchemeHttp))
+        {
+            return null;
+        }
+
+        return parsed.AbsoluteUri;
+    }
+
+    private static void PostCatchNotification(object payload)
+    {
+        byte[] body = Encoding.UTF8.GetBytes(
+            JsonConvert.SerializeObject(payload)
+        );
+
+        var request = (HttpWebRequest)WebRequest.Create(
+            "http://127.0.0.1:8787/catch"
+        );
+
+        request.Method = "POST";
+        request.ContentType = "application/json";
+        request.ContentLength = body.Length;
+        request.Timeout = 5000;
+        request.ReadWriteTimeout = 5000;
+        request.Proxy = null;
+        request.AllowAutoRedirect = false;
+
+        using (Stream stream = request.GetRequestStream())
+        {
+            stream.Write(body, 0, body.Length);
+        }
+
+        using (var response = (HttpWebResponse)request.GetResponse())
+        {
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                throw new InvalidOperationException(
+                    "Unexpected overlay response: " +
+                    response.StatusCode + "."
+                );
+            }
+        }
     }
 
     /// <summary>
