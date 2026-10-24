@@ -11,7 +11,7 @@ namespace PokeHunter.Storage
     /// </summary>
     public static class DatabaseInitializer
     {
-        public const int CurrentSchemaVersion = 3;
+        public const int CurrentSchemaVersion = 4;
 
         // Stable database-family identifier: ASCII "PHS1".
         // This does not change when the schema version increases.
@@ -23,14 +23,16 @@ namespace PokeHunter.Storage
         {
             "Create migration history",
             "Create trainers",
-            "Create seasons"
+            "Create seasons",
+            "Create redemption results"
         };
 
         private static readonly string[] MigrationResources =
         {
             "PokeHunter.Storage.Migrations.001_CreateMigrationHistory.sql",
             "PokeHunter.Storage.Migrations.002_CreateTrainers.sql",
-            "PokeHunter.Storage.Migrations.003_CreateSeasons.sql"
+            "PokeHunter.Storage.Migrations.003_CreateSeasons.sql",
+            "PokeHunter.Storage.Migrations.004_CreateRedemptionResults.sql"
         };
         /// <summary>
         /// Initializes or upgrades a database at a normalized absolute path.

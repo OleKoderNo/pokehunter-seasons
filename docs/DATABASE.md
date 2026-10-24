@@ -2,21 +2,23 @@
 
 SQLite runs locally through the C# library; no separate database server is required.
 Initialization, trainer profiles, and season registration are implemented and checked
-inside Streamer.bot. Catch storage and redemption processing are still planned.
+inside Streamer.bot. Schema constraints for redemption results and seasonal progress are also verified.
+Saving encounter-engine results and live redemption processing are not yet connected.
 
 For installation use [SQLite Setup](SQLITE_SETUP.md); for running actions use
 [C# Development](CSHARP_DEVELOPMENT.md#run-manual-streamerbot-checks).
 
 ## Schema and initialization
 
-Current schema version: **3**. The storage project is
+Current schema version: **4**. The storage project is
 `streamerbot/storage/PokeHunter.Storage.csproj`.
 
-| Version | Embedded SQL file                | Recorded name            |
-| ------- | -------------------------------- | ------------------------ |
-| 1       | `001_CreateMigrationHistory.sql` | Create migration history |
-| 2       | `002_CreateTrainers.sql`         | Create trainers          |
-| 3       | `003_CreateSeasons.sql`          | Create seasons           |
+| Version | Embedded SQL file                 | Recorded name             |
+| ------- | --------------------------------- | ------------------------- |
+| 1       | `001_CreateMigrationHistory.sql`  | Create migration history  |
+| 2       | `002_CreateTrainers.sql`          | Create trainers           |
+| 3       | `003_CreateSeasons.sql`           | Create seasons            |
+| 4       | `004_CreateRedemptionResults.sql` | Create redemption results |
 
 Files live in `streamerbot/storage/migrations/`. The csproj embeds them with explicit
 LogicalName values; the initializer registry determines execution order. Embedding does
@@ -28,8 +30,8 @@ keys, starts an immediate transaction, verifies application marker/version/histo
 missing migrations, validates the result, and commits. Pending migrations and history
 updates commit together; failure attempts rollback.
 
-Fresh databases receive 1–3. Supported existing databases receive missing migrations only.
-A valid version-3 database needs no migration; existing history timestamps are preserved.
+Fresh databases receive migrations 1–4. Supported existing databases receive missing migrations only.
+A valid version-4 database needs no migration; existing history timestamps are preserved.
 Every future connection must enable foreign-key enforcement too.
 
 The initializer rejects negative/newer versions, unrelated version-0 databases with
@@ -86,20 +88,20 @@ validation; the repository checks the individual definition.
 
 Season and generation rows are inserted in one BEGIN IMMEDIATE transaction. A failed
 insert rolls back the whole registration. Configuration chooses the active season;
-storage preserves the history reference. This uses schema 3 without an additional migration.
+storage preserves the history reference. These tables were introduced in migration 3 and remain part of schema 4.
 
 ## Verified checks and limits
 
 | Check              | Evidence                                                                                                                                  |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | SQLite persistence | Counter survives reopening and normal Streamer.bot restart                                                                                |
-| Initialization     | History preserved; existing upgrades and fresh/repeated schema-3 initialization; expected columns                                         |
+| Initialization     | History preserved; existing upgrades and fresh/repeated schema-4 initialization; expected columns                                         |
 | Rejection          | Newer/unrelated fixture databases rejected without changed file bytes                                                                     |
 | Trainers           | Create/read across repositories; rename/unchanged timestamps; isolation, no duplicate rows; blank login rejected                          |
 | Seasons            | UTC equivalence; case-insensitive IDs; conflicts/invalid generations rejected; deliberate child-insert failure rolls back; retry succeeds |
 
-The persistent test database upgraded from 1→2→3. Later runs test idempotence, not those
-upgrades again. Column checks do not prove every constraint. Concurrent initialization,
+The persistent test database now contains migrations 1–4. Later runs test idempotence, not those
+upgrades again. Column checks verify column availability; the separate redemption schema check exercises the constraints listed below. Concurrent initialization,
 concurrent repository writes, partial migration failure, and all input-validation branches
 have not been exhaustively tested.
 
@@ -115,30 +117,62 @@ have not been exhaustively tested.
 Do not turn a test database into the live database. Ignore databases, journal/WAL companion
 files, runtime records, and backups in Git. None are source files.
 
-## Planned catch and redemption storage
+## Redemption results and seasonal progress
 
-Successful catches are permanent history. Seasonal and National Dex views must derive
-consistent results from those catches; any future ownership tables are transactional
-indexes/projections, not independently maintained competing collections.
+Migration 4 creates two tables. The schema is implemented; the repository that saves
+encounter-engine results is the next step.
 
-| Identity / record   | Planned requirement                                                                                  |
-| ------------------- | ---------------------------------------------------------------------------------------------------- |
-| Seasonal ownership  | Unique `(Twitch user ID, season ID, entry ID)`                                                       |
-| Lifetime uniqueness | Distinct `(Twitch user ID, entry ID)` across seasons                                                 |
-| Catch               | Trainer, season, stable entry, shiny state, UTC time, originating redemption, event/category context |
-| Seasonal progress   | Consecutive fully failed redemptions; success resets, full failure increments once                   |
-| Redemption          | Stable delivery identity, acceptance context, processing outcome; failures also recorded             |
-| Notification        | Saved-catch identity and delivery state; exact schema remains to be designed                         |
+| Table                     | Purpose                                                                 |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `redemption_results`      | One completed result per redemption, including unsuccessful redemptions |
+| `trainer_season_progress` | Current consecutive-failure streak per trainer and season               |
 
-Recatching the same entry in another season adds a catch, not a new lifetime unique entry.
-Normal/shiny entries are separate. Historical snapshot fields and catalogue compatibility
-must be settled alongside catch storage. Shiny protection is session-local, not a persistent
-next-redemption guarantee.
+A successful result is also its catch record. It stores the trainer, season, entry ID,
+shiny state, category/group, optional event ID, acceptance/completion timestamps, and
+an entry snapshot in `entry_snapshot_json`. There is no separate catch table in this schema.
 
-The database must enforce at most one catch per redemption, seasonal uniqueness, stable
-redemption uniqueness, and valid trainer/season references. Record result, catch, and
-progress changes atomically. Announce only after commit. A technical failure is not an
-ordinary gameplay failure. See [Architecture](ARCHITECTURE.md) for recovery and concurrency.
+The database enforces:
+
+- A unique redemption ID, allowing at most one saved result/catch per redemption.
+- A unique successful `(twitch_user_id, season_id, entry_id)` combination.
+- Existing trainer and season references through foreign keys.
+- An attempt budget equal to the previous failure streak plus one.
+- At least one used attempt, without exceeding that budget.
+- Success resetting the next streak to zero and requiring all catch fields.
+- Failure using every available attempt, incrementing the streak once, and having no catch fields.
+- One nonnegative progress streak per trainer and season.
+
+Normal and shiny entries have different entry IDs. Catching an entry again in another
+season adds another catch, but must not increase lifetime unique-entry bonuses.
+National Dex totals will be derived from successful results; lifetime uniqueness uses
+distinct entry IDs per trainer across seasons.
+
+Season foreign keys and indexes use SQLite's ASCII-only `NOCASE` collation. Future
+storage code must use the canonical season ID returned by `SeasonRepository`, whose
+identity handling also supports international IDs.
+
+`DatabaseRedemptionSchemaCheck` verifies duplicate prevention, cross-season and shiny
+identities, required catch fields, attempt/streak constraints, parent references, and
+rollback of result and progress changes together. Its synthetic records live only in
+a temporary database; cleanup is attempted after execution.
+
+The rollback check exercises an explicit SQLite transaction, not a production save
+repository. SQL currently requires nonempty snapshot/timestamp text; it does not validate
+snapshot JSON, catalogue metadata, timestamp formats, or consistency between an entry ID
+and its shiny flag. Those checks belong in the storage implementation.
+
+## Remaining storage work
+
+Save the result and progress update atomically, using parameterized SQL and validated
+session outcomes. Repeated delivery of a redemption must return its saved result without
+rolling again. A uniqueness constraint is only one part of that workflow.
+
+Cooldown enforcement, concurrent redemptions, interrupted-session recovery, catalogue
+compatibility, and notification delivery state remain to be implemented. Announce a
+catch only after the database commit. Technical errors must not be recorded as ordinary
+gameplay failures. Shiny protection remains session-local.
+
+See [Architecture](ARCHITECTURE.md) for the wider recovery and concurrency plan.
 
 ## Migration and backup policy
 
@@ -151,6 +185,5 @@ player data, relevant configuration, and catalogue definitions used by catches. 
 supported SQLite backup mechanism or close database access before copying files; a live
 main-file-only copy can omit journal/WAL state. Keep another backup outside the streaming PC.
 
-Next storage work is catch/redemption records, ownership/progress constraints, cooldown and
-recovery state, then integration with the encounter engine. Trainer/season foundations do
-not yet implement those features.
+Next: implement the redemption repository, verify atomic saves and repeat-delivery
+handling, then connect it to the encounter engine.

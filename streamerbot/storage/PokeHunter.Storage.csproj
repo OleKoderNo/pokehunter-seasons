@@ -69,5 +69,9 @@
         <EmbeddedResource Include="migrations/003_CreateSeasons.sql">
             <LogicalName>PokeHunter.Storage.Migrations.003_CreateSeasons.sql</LogicalName>
         </EmbeddedResource>
+
+        <EmbeddedResource Include="migrations/004_CreateRedemptionResults.sql">
+            <LogicalName>PokeHunter.Storage.Migrations.004_CreateRedemptionResults.sql</LogicalName>
+        </EmbeddedResource>
     </ItemGroup>
 </Project>

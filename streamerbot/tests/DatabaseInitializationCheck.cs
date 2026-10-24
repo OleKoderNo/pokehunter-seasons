@@ -11,18 +11,16 @@ public class DatabaseInitializationCheck
 public class CPHInline
 #endif
 {
-    private const string ProjectFolder =
-        @"C:\Users\ohfb9\Documents\Coding\Private\Streaming\pokehunter-seasons";
-
     // Keep test expectations explicit and independent of the initializer.
     // A missing migration should fail the test, not redefine its expectation.
-    private const int ExpectedSchemaVersion = 3;
+    private const int ExpectedSchemaVersion = 4;
 
     private static readonly string[] ExpectedMigrationNames =
     {
         "Create migration history",
         "Create trainers",
-        "Create seasons"
+        "Create seasons",
+        "Create redemption results"
     };
 
 #if EXTERNAL_EDITOR
@@ -38,8 +36,18 @@ public class CPHInline
 
         try
         {
+            string projectFolder;
+
+            if (!CPH.TryGetArg("pokeHunterProjectRoot", out projectFolder) ||
+                string.IsNullOrWhiteSpace(projectFolder))
+            {
+                throw new ArgumentException(
+                    "Set pokeHunterProjectRoot to your absolute repository path."
+                );
+            }
+
             string databasePath = Path.Combine(
-                ProjectFolder,
+                projectFolder,
                 "runtime",
                 "database-initialization-test.db"
             );
@@ -87,11 +95,11 @@ public class CPHInline
 
             CPH.LogInfo(
                 "[PokéHunter] PASS: Repeated initialization preserved " +
-                "all three migration records."
+                "all four migration records."
             );
 
             CPH.LogInfo(
-                "[PokéHunter] PASS: Trainer and season tables contain " +
+                "[PokéHunter] PASS: Trainer, season, redemption, and progress tables contain " +
                 "the expected columns."
             );
 
@@ -117,8 +125,8 @@ public class CPHInline
             CheckExpectedColumns(freshPath);
 
             CPH.LogInfo(
-                "[PokéHunter] PASS: A fresh database reached version 3 " +
-                "with trainer and season tables."
+                "[PokéHunter] PASS: A fresh database reached version 4 " +
+                "with all expected tables."
             );
 
             CPH.LogInfo(
@@ -283,6 +291,29 @@ public class CPHInline
                   LIMIT 0;",
                 2,
                 "season_generations"
+            );
+
+            CheckColumns(
+                connection,
+                @"SELECT redemption_id, twitch_user_id, season_id,
+                         accepted_at_utc, completed_at_utc, event_id,
+                         outcome, previous_failure_streak, available_attempts,
+                         attempts_used, next_failure_streak, entry_id,
+                         is_shiny, category_id, group_id, entry_snapshot_json
+                  FROM redemption_results
+                  LIMIT 0;",
+                16,
+                "redemption_results"
+            );
+
+            CheckColumns(
+                connection,
+                @"SELECT twitch_user_id, season_id,
+                         consecutive_failed_redemptions, updated_at_utc
+                  FROM trainer_season_progress
+                  LIMIT 0;",
+                4,
+                "trainer_season_progress"
             );
         }
     }
