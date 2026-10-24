@@ -226,8 +226,7 @@ namespace PokeHunter.Encounters
         {
             return gender == "male" ||
                 gender == "female" ||
-                gender == "genderless" ||
-                gender == "unspecified";
+                gender == "genderless";
         }
 
         /// <summary>

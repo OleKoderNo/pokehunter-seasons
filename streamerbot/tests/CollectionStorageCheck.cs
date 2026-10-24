@@ -65,7 +65,7 @@ public class CPHInline
                 Insert(connection, new ResultRow { Id = "a-normal" });
                 Insert(connection, new ResultRow { Id = "a-shiny", Entry = "pikachu:male:shiny", Shiny = 1 });
                 Insert(connection, new ResultRow { Id = "b-repeat", Season = "season-b" });
-                Insert(connection, new ResultRow { Id = "b-new", Season = "season-b", Entry = "bulbasaur:unspecified:normal", Group = "bulbasaur", Category = "grass" });
+                Insert(connection, new ResultRow { Id = "b-new", Season = "season-b", Entry = "bulbasaur:male:normal", Group = "bulbasaur", Category = "grass" });
                 Insert(connection, new ResultRow
                 {
                     Id = "a-failure",

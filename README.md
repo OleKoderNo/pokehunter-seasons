@@ -26,7 +26,7 @@ The website/leaderboard and December content are later work.
 
 - **500 channel points** and no automatic refunds.
 - At most one catch per redemption; fully failed redemptions earn another attempt next time.
-- Separate collectibles for normal/shiny states, supported forms, costumes, and visible genders.
+- Separate collectibles for normal/shiny states, supported forms, costumes, and each supported gender—even when their artwork is identical.
 - Annual seasons by default; old catches remain in the National Dex.
 - Base shiny odds of **1 in 8,192**, improved by unique collection milestones and subscription tier.
 - Themed events expand the roster and add a weighted Event category.

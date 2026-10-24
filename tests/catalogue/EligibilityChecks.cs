@@ -26,7 +26,7 @@ namespace PokeHunter.Tests.Catalogue
 
             Expect(before, "pikachu:male:normal", true, false);
             Expect(before, "mew:genderless:normal", true, false);
-            Expect(before, "houndour:unspecified:normal", false, false);
+            Expect(before, "houndour:male:normal", false, false);
             Expect(before, "pikachu-libre:female:normal", false, false);
 
             Require(
@@ -45,14 +45,14 @@ namespace PokeHunter.Tests.Catalogue
                 eventStart
             );
 
-            Expect(active, "gastly:unspecified:normal", true, true);
-            Expect(active, "gastly:unspecified:shiny", true, true);
+            Expect(active, "gastly:male:normal", true, true);
+            Expect(active, "gastly:male:shiny", true, true);
 
             // Houndour matches through Houndoom's evolution family.
-            Expect(active, "houndour:unspecified:normal", true, true);
+            Expect(active, "houndour:male:normal", true, true);
 
             // A later regional form enters through its Ghost typing.
-            Expect(active, "marowak-alola:unspecified:normal", true, true);
+            Expect(active, "marowak-alola:male:normal", true, true);
 
             // Explicitly included costume.
             Expect(active, "pikachu-libre:female:normal", true, true);
@@ -100,6 +100,7 @@ namespace PokeHunter.Tests.Catalogue
 
             // Reuse the fixed active-event fixture to check category construction.
             EncounterCategoryChecks.Run(catalogue, active);
+            GenderCollectionChecks.Run(catalogue);
 
             EligibleCataloguePool ended = EligibilityPoolBuilder.Build(
                 catalogue,
@@ -108,7 +109,7 @@ namespace PokeHunter.Tests.Catalogue
                 eventEnd
             );
 
-            Expect(ended, "houndour:unspecified:normal", false, false);
+            Expect(ended, "houndour:male:normal", false, false);
             Expect(ended, "pikachu-libre:female:normal", false, false);
 
             Require(
@@ -129,7 +130,7 @@ namespace PokeHunter.Tests.Catalogue
                 eventStart
             );
 
-            Expect(disabled, "houndour:unspecified:normal", false, false);
+            Expect(disabled, "houndour:male:normal", false, false);
 
             Require(
                 disabled.EventId == null,
@@ -146,8 +147,8 @@ namespace PokeHunter.Tests.Catalogue
                 eventStart
             );
 
-            Expect(restricted, "gastly:unspecified:normal", true, true);
-            Expect(restricted, "houndour:unspecified:normal", false, false);
+            Expect(restricted, "gastly:male:normal", true, true);
+            Expect(restricted, "houndour:male:normal", false, false);
             Expect(restricted, "pikachu-libre:female:normal", false, false);
 
             Console.WriteLine(

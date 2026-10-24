@@ -91,7 +91,7 @@ function isPositiveInteger(value: unknown): value is number {
 }
 
 /**
- * Checks stored media references without requesting the remote file.
+ * Checks media references without requesting the remote file.
  * Explicit null is allowed; absent or malformed values are not.
  */
 function validateAsset(value: unknown, path: string): void {
@@ -119,8 +119,10 @@ function validateAsset(value: unknown, path: string): void {
 /**
  * Validates one saved entry and narrows unknown JSON to CollectionEntry.
  *
- * This verifies the entry contract and internal relationships.
- * It does not verify Pokémon facts against PokéAPI or season eligibility.
+ * Gender identifies the collectible. hasGenderDifference describes
+ * appearance and does not determine whether genders are separate.
+ *
+ * This checks the contract, not Pokémon facts or runtime eligibility.
  */
 export function validateCollectionEntry(
   value: unknown,
@@ -184,12 +186,13 @@ export function validateCollectionEntry(
   requireValue(
     value.gender === "male" ||
       value.gender === "female" ||
-      value.gender === "genderless" ||
-      value.gender === "unspecified",
+      value.gender === "genderless",
     `${path}.gender`,
     "unsupported collection gender.",
   );
 
+  // False permits either or both gender identities.
+  // True cannot describe a genderless entry.
   requireValue(
     !value.hasGenderDifference ||
       value.gender === "male" ||

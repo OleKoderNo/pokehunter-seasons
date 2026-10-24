@@ -9,7 +9,7 @@ This guide owns catalogue identities and structure. For generation commands, see
 reviewed Ghost forms, Hangry Morpeko, and five ORAS costumes. It contains entries
 and encounter groups with resolved rarity. C# loading and relationship checks exist.
 
-The verified roster has 620 entries (310 normal and 310 shiny) in 277 groups.
+The verified roster has 996 entries (498 normal and 498 shiny) in 277 groups.
 Counts are a snapshot, not constants future catalogues must retain.
 
 The document remains an intermediate format:
@@ -60,7 +60,7 @@ Contracts: `scripts/types/catalogue.ts` and
 | `displayName`                      | Species display name                                    |
 | `formName`                         | Reviewed form label, or null                            |
 | `regionalForm`                     | Regional identifier such as `alola`, or null            |
-| `gender`                           | `male`, `female`, `genderless`, or `unspecified`        |
+| `gender`                           | `male`, `female`, or `genderless`                       |
 | `hasGenderDifference`              | Visible gender difference for the supported form        |
 | `isShiny`                          | Normal/shiny state                                      |
 | `isCostume`                        | Costume classification                                  |
@@ -75,14 +75,16 @@ The overlay test combines species name and form label for announcements. Do not 
 
 ## Gender and shiny mappings
 
-- Visible gender differences receive separate male/female entries.
+- Forms supporting both genders receive separate male and female entries,
+  even when their artwork is identical.
 - Single-gender species/forms retain that gender; genderless species use `genderless`.
-- Mixed-gender forms without a supported difference use `unspecified`, not `genderless`.
+- `hasGenderDifference` describes appearance, not whether genders count separately.
 - Reviewed Frillish, Jellicent, and Basculegion gender resources share a canonical form
   ID; avoid encoding the gender twice in form and entry identity.
 - Species metadata is not sufficient for every costume. The five ORAS costumes are
   female-only and set `hasGenderDifference: false` for those particular forms.
-- Missing female sprite fields do not decide whether a female identity exists.
+- Missing artwork never removes a supported gender identity. Forms without visible
+  differences can share artwork between their male and female entries.
 
 Every included form/gender has both normal and shiny entries, even when officially
 shiny-locked. Counterparts agree on all metadata except `id`, `isShiny`, and `sprite`.
@@ -124,8 +126,9 @@ apply after matching. `eventOnly: false` does not mean universally available.
 
 The costume converter produces ten entries: female normal/shiny for each of the five
 ORAS outfits, introduced in Generation 6, grouped under Pikachu, and event-only.
-Hangry Morpeko has two unspecified entries, its own group, Generation 8, and
-`eventOnly: false`; it still needs an event exception during Season 1.
+Hangry Morpeko has four entries: male and female, each normal and shiny. It has its
+own group, was introduced in Generation 8, and uses `eventOnly: false`; it still
+needs an event exception during Season 1.
 
 ## C# availability structures
 

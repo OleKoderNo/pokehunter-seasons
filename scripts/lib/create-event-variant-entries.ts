@@ -2,18 +2,19 @@ import { isJsonObject } from "./pokeapi.js";
 import type { JsonObject } from "./pokeapi.js";
 import {
   readAssetUrl,
+  readCollectionGenders,
   readDisplayName,
   readNationalDexNumber,
   readTypes,
 } from "./create-regular-entries.js";
 import { readEvolutionChainId } from "./read-evolution-chain-id.js";
-import type { CollectionEntry } from "../types/catalogue.js";
+import type { CollectionEntry, CollectionGender } from "../types/catalogue.js";
 
 /**
  * Reviewed rules for the six explicit Halloween variants.
  *
- * Costume gender restrictions are form-specific. They must not be
- * inferred from Pikachu's species-wide gender metadata.
+ * Gender restrictions belong to the supported form. A costume does not
+ * automatically support every gender available to its base species.
  */
 interface VariantDefinition {
   pokemonId: string;
@@ -22,7 +23,7 @@ interface VariantDefinition {
   formName: string;
   generationName: string;
   introducedGeneration: number;
-  gender: "female" | "unspecified";
+  genders: readonly CollectionGender[];
   isCostume: boolean;
 }
 
@@ -34,7 +35,7 @@ export const EVENT_VARIANTS: readonly Readonly<VariantDefinition>[] = [
     formName: "Hangry Mode",
     generationName: "generation-viii",
     introducedGeneration: 8,
-    gender: "unspecified",
+    genders: ["male", "female"],
     isCostume: false,
   },
   {
@@ -44,7 +45,7 @@ export const EVENT_VARIANTS: readonly Readonly<VariantDefinition>[] = [
     formName: "Rock Star",
     generationName: "generation-vi",
     introducedGeneration: 6,
-    gender: "female",
+    genders: ["female"],
     isCostume: true,
   },
   {
@@ -54,7 +55,7 @@ export const EVENT_VARIANTS: readonly Readonly<VariantDefinition>[] = [
     formName: "Belle",
     generationName: "generation-vi",
     introducedGeneration: 6,
-    gender: "female",
+    genders: ["female"],
     isCostume: true,
   },
   {
@@ -64,7 +65,7 @@ export const EVENT_VARIANTS: readonly Readonly<VariantDefinition>[] = [
     formName: "Pop Star",
     generationName: "generation-vi",
     introducedGeneration: 6,
-    gender: "female",
+    genders: ["female"],
     isCostume: true,
   },
   {
@@ -74,7 +75,7 @@ export const EVENT_VARIANTS: readonly Readonly<VariantDefinition>[] = [
     formName: "Ph. D.",
     generationName: "generation-vi",
     introducedGeneration: 6,
-    gender: "female",
+    genders: ["female"],
     isCostume: true,
   },
   {
@@ -84,19 +85,17 @@ export const EVENT_VARIANTS: readonly Readonly<VariantDefinition>[] = [
     formName: "Libre",
     generationName: "generation-vi",
     introducedGeneration: 6,
-    gender: "female",
+    genders: ["female"],
     isCostume: true,
   },
 ];
 
 /**
- * Creates normal and shiny entries for one explicitly reviewed variant.
+ * Creates both shiny states for every reviewed supported gender.
  *
  * The caller resolves generationName from the form's version group.
- * Missing media does not remove either collection entry.
- *
- * This function does not decide whether the variant is currently
- * available. Season and event eligibility belong to the runtime.
+ * Missing media preserves all collection identities.
+ * Runtime rules determine whether the entries are currently obtainable.
  */
 export function createEventVariantEntries(
   pokemon: JsonObject,
@@ -137,14 +136,26 @@ export function createEventVariantEntries(
     throw new Error("Unexpected Legendary or Mythical classification.");
   }
 
-  // These reviewed resources belong to mixed-gender species.
-  // The costume mapping narrows Pikachu to female-only collection entries.
+  // These reviewed species support both genders. Pikachu has visible
+  // species-level differences; Morpeko does not.
   if (
     species.gender_rate !== 4 ||
     species.has_gender_differences !== definition.isCostume
   ) {
     throw new Error(
       "Event variant species gender metadata disagrees with review.",
+    );
+  }
+
+  const speciesGenders = readCollectionGenders(species);
+
+  if (
+    definition.genders.length === 0 ||
+    new Set(definition.genders).size !== definition.genders.length ||
+    definition.genders.some((gender) => !speciesGenders.includes(gender))
+  ) {
+    throw new Error(
+      "Event variant genders disagree with the supported species genders.",
     );
   }
 
@@ -158,48 +169,54 @@ export function createEventVariantEntries(
     legacy: readAssetUrl(pokemon.cries, "legacy"),
   };
 
-  return [false, true].map((isShiny): CollectionEntry => {
-    // These resources already depict their supported form and gender.
-    // The female-only costumes therefore use default sprite fields.
+  const entries: CollectionEntry[] = [];
+
+  for (const isShiny of [false, true]) {
+    // Female-only costumes use their default artwork.
+    // Morpeko's two genders share the same artwork for each shiny state.
     const spriteField = isShiny ? "front_shiny" : "front_default";
 
     const spriteUrl =
       readAssetUrl(form.sprites, spriteField) ??
       readAssetUrl(pokemon.sprites, spriteField);
 
-    return {
-      id: `${definition.pokemonId}:${definition.gender}:${isShiny ? "shiny" : "normal"}`,
-      speciesId: definition.speciesId,
-      nationalDexNumber,
-      evolutionChainId,
-      isLegendary: false,
-      isMythical: false,
+    for (const gender of definition.genders) {
+      entries.push({
+        id: `${definition.pokemonId}:${gender}:${isShiny ? "shiny" : "normal"}`,
+        speciesId: definition.speciesId,
+        nationalDexNumber,
+        evolutionChainId,
+        isLegendary: false,
+        isMythical: false,
 
-      // Costumes share Pikachu's selection weight.
-      // Hangry Morpeko is a separate non-costume form.
-      encounterGroupId: definition.isCostume
-        ? definition.speciesId
-        : definition.pokemonId,
+        // Costume entries share Pikachu's group.
+        // More genders do not create extra encounter groups.
+        encounterGroupId: definition.isCostume
+          ? definition.speciesId
+          : definition.pokemonId,
 
-      formId: definition.pokemonId,
-      displayName,
-      formName: definition.formName,
-      regionalForm: null,
-      gender: definition.gender,
+        formId: definition.pokemonId,
+        displayName,
+        formName: definition.formName,
+        regionalForm: null,
+        gender,
 
-      // None of these individual forms has two visibly distinct genders.
-      hasGenderDifference: false,
+        // Appearance metadata does not determine collection separation.
+        hasGenderDifference: false,
 
-      isShiny,
-      isCostume: definition.isCostume,
-      eventOnly: definition.isCostume,
-      introducedGeneration: definition.introducedGeneration,
-      types: [...types],
-      sprite: {
-        url: spriteUrl,
-        fallbackUrl: null,
-      },
-      cries: { ...cries },
-    };
-  });
+        isShiny,
+        isCostume: definition.isCostume,
+        eventOnly: definition.isCostume,
+        introducedGeneration: definition.introducedGeneration,
+        types: [...types],
+        sprite: {
+          url: spriteUrl,
+          fallbackUrl: null,
+        },
+        cries: { ...cries },
+      });
+    }
+  }
+
+  return entries;
 }

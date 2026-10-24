@@ -41,10 +41,8 @@ namespace PokeHunter.Catalogue
             {
                 "male",
                 "female",
-                "genderless",
-                "unspecified"
+                "genderless"
             };
-
         private static readonly HashSet<string> SupportedRarities =
             new HashSet<string>(StringComparer.Ordinal)
             {

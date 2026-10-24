@@ -123,7 +123,7 @@
       }
     },
     {
-      "id": "bulbasaur:unspecified:normal",
+      "id": "bulbasaur:male:normal",
       "speciesId": "bulbasaur",
       "nationalDexNumber": 1,
       "evolutionChainId": 1,
@@ -134,7 +134,7 @@
       "displayName": "Bulbasaur",
       "formName": null,
       "regionalForm": null,
-      "gender": "unspecified",
+      "gender": "male",
       "hasGenderDifference": false,
       "isShiny": false,
       "isCostume": false,
@@ -154,7 +154,7 @@
       }
     },
     {
-      "id": "bulbasaur:unspecified:shiny",
+      "id": "bulbasaur:female:normal",
       "speciesId": "bulbasaur",
       "nationalDexNumber": 1,
       "evolutionChainId": 1,
@@ -165,7 +165,69 @@
       "displayName": "Bulbasaur",
       "formName": null,
       "regionalForm": null,
-      "gender": "unspecified",
+      "gender": "female",
+      "hasGenderDifference": false,
+      "isShiny": false,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/1.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/1.ogg"
+      }
+    },
+    {
+      "id": "bulbasaur:male:shiny",
+      "speciesId": "bulbasaur",
+      "nationalDexNumber": 1,
+      "evolutionChainId": 1,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "bulbasaur",
+      "formId": "bulbasaur",
+      "displayName": "Bulbasaur",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "male",
+      "hasGenderDifference": false,
+      "isShiny": true,
+      "isCostume": false,
+      "eventOnly": false,
+      "introducedGeneration": 1,
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "sprite": {
+        "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/1.png",
+        "fallbackUrl": null
+      },
+      "cries": {
+        "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/1.ogg",
+        "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/1.ogg"
+      }
+    },
+    {
+      "id": "bulbasaur:female:shiny",
+      "speciesId": "bulbasaur",
+      "nationalDexNumber": 1,
+      "evolutionChainId": 1,
+      "isLegendary": false,
+      "isMythical": false,
+      "encounterGroupId": "bulbasaur",
+      "formId": "bulbasaur",
+      "displayName": "Bulbasaur",
+      "formName": null,
+      "regionalForm": null,
+      "gender": "female",
       "hasGenderDifference": false,
       "isShiny": true,
       "isCostume": false,

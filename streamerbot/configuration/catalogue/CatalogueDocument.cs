@@ -169,10 +169,10 @@ namespace PokeHunter.Catalogue
         public string RegionalForm { get; set; }
 
         /// <summary>
-        /// Collection gender: male, female, genderless, or unspecified.
-        ///
-        /// Unspecified combines genders without a supported visible
-        /// difference. Single-gender forms retain their actual gender.
+        /// Collection gender: male, female, or genderless.
+        /// Male and female are separate collectible identities even
+        /// when they share artwork. Single-gender forms retain only
+        /// their supported gender.
         /// </summary>
         [JsonProperty("gender", Required = Required.Always)]
         public string Gender { get; set; }

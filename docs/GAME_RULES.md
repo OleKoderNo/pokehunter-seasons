@@ -10,14 +10,16 @@ see the [README](../README.md) for status and [Configuration](CONFIGURATION.md) 
 | Cost                 | 500 channel points covers every attempt in one redemption                                         |
 | Catch limit          | At most one successful catch per redemption                                                       |
 | Redemption frequency | No per-viewer gameplay cooldown; each distinct redemption receives its own session.               |
-| Usage limit          | No per-stream limit beyond the per-viewer cooldown                                                |
+| Usage limit          | No gameplay limit per viewer or per stream                                                        |
+| Refunds              | No automatic refunds, including duplicates, empty pools, or technical errors                      |
 | Refunds              | No automatic refunds, including duplicates, empty pools, cooldown rejections, or technical errors |
 | Seasonal uniqueness  | Each collectible entry can be caught once per season                                              |
 | Lifetime history     | Every successful catch remains recorded across seasons                                            |
 
-Use Twitch user IDs for identity and cooldowns. Renaming a viewer must not reset progress.
-A cooldown rejection performs no rolls, does not alter the streak, and does not extend
-cooldown. Explain the cooldown and no-refund policy in the reward description.
+Use Twitch user IDs for identity. Renaming a viewer must not reset progress.
+There is no per-viewer gameplay cooldown. Explain the no-refund policy in the
+reward description. Twitch controls the reward's actual channel-point charge;
+the configured cost documents the intended price.
 
 National Dex totals distinguish total catches from unique entries. Catching the same
 normal Abra in Seasons 1, 3, and 5 means three catches but one lifetime unique entry.
@@ -27,10 +29,11 @@ National totals are for the later showcase/leaderboard.
 
 ## Collectible identity
 
-Normal/shiny states, supported forms, costumes, and visible gender differences count
-separately. Regular Pikachu has male/female × normal/shiny entries. Pokémon without
-supported visible gender differences share a gender identity; single-gender forms
-retain only their supported gender. Never invent a counterpart.
+Normal/shiny states, supported forms, costumes, and each supported gender count
+separately. Pokémon supporting both genders have male normal, female normal,
+male shiny, and female shiny entries—even when both genders share artwork.
+Single-gender forms retain only their supported gender; genderless forms use
+genderless normal and shiny entries. Never invent an unsupported gender.
 
 Every included form/gender has a shiny entry, even if officially shiny-locked. Missing
 artwork does not remove an entry; any substitute must be clearly identified as a fallback.
@@ -172,8 +175,8 @@ Starts are inclusive; ends exclusive. Consecutive seasons must meet without gaps
 overlaps. Future seasons are explicit, not automatically created.
 
 New seasons start fresh seasonal ownership and retry streaks. Preserve archived catches,
-National totals, and unique bonuses. Cooldown does not reset at a season boundary.
-A redemption belongs to the season selected at acceptance, including recovery after errors.
+National totals, and unique bonuses. A saved redemption retains its original season
+when delivered again. Recovery of interrupted, unsaved sessions remains to be implemented.
 
 ## Events
 

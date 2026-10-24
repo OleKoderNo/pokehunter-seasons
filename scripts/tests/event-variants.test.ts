@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createEventVariantEntries } from "../lib/create-event-variant-entries.js";
+import { validateCollectionEntry } from "../lib/validate-collection-entry.js";
+import { validateEntryCounterparts } from "../lib/validate-entry-counterparts.js";
 import {
   makeForm,
   makePokemon,
@@ -21,6 +23,29 @@ function makeCostume(label: string) {
       name,
       form_name: label,
       pokemon: { name },
+    }),
+  };
+}
+
+/** Builds a mixed-gender form whose genders share the same appearance. */
+function makeMorpeko() {
+  return {
+    pokemon: makePokemon({
+      name: "morpeko-hangry",
+      species: { name: "morpeko" },
+    }),
+    species: makeSpecies({
+      name: "morpeko",
+      has_gender_differences: false,
+    }),
+    form: makeForm({
+      name: "morpeko-hangry",
+      form_name: "hangry",
+      pokemon: { name: "morpeko-hangry" },
+      types: [
+        { slot: 1, type: { name: "electric" } },
+        { slot: 2, type: { name: "dark" } },
+      ],
     }),
   };
 }
@@ -50,6 +75,7 @@ for (const label of ["rock-star", "belle", "pop-star", "phd", "libre"]) {
       assert.equal(entry.isCostume, true);
       assert.equal(entry.eventOnly, true);
       assert.equal(entry.introducedGeneration, 6);
+      validateCollectionEntry(entry);
     }
 
     // Female-only costume resources use default artwork fields.
@@ -57,29 +83,13 @@ for (const label of ["rock-star", "belle", "pop-star", "phd", "libre"]) {
       entries.map((entry) => entry.sprite.url),
       ["https://assets.invalid/normal.png", "https://assets.invalid/shiny.png"],
     );
+
+    validateEntryCounterparts(entries);
   });
 }
 
-test("Hangry Morpeko produces two unspecified entries in its own group", () => {
-  const pokemon = makePokemon({
-    name: "morpeko-hangry",
-    species: { name: "morpeko" },
-  });
-
-  const species = makeSpecies({
-    name: "morpeko",
-    has_gender_differences: false,
-  });
-
-  const form = makeForm({
-    name: "morpeko-hangry",
-    form_name: "hangry",
-    pokemon: { name: "morpeko-hangry" },
-    types: [
-      { slot: 1, type: { name: "electric" } },
-      { slot: 2, type: { name: "dark" } },
-    ],
-  });
+test("Hangry Morpeko produces both genders and shiny states in one group", () => {
+  const { pokemon, species, form } = makeMorpeko();
 
   const entries = createEventVariantEntries(
     pokemon,
@@ -90,16 +100,64 @@ test("Hangry Morpeko produces two unspecified entries in its own group", () => {
 
   assert.deepStrictEqual(
     entries.map((entry) => entry.id),
-    ["morpeko-hangry:unspecified:normal", "morpeko-hangry:unspecified:shiny"],
+    [
+      "morpeko-hangry:male:normal",
+      "morpeko-hangry:female:normal",
+      "morpeko-hangry:male:shiny",
+      "morpeko-hangry:female:shiny",
+    ],
   );
 
   for (const entry of entries) {
     assert.equal(entry.encounterGroupId, "morpeko-hangry");
+    assert.equal(entry.hasGenderDifference, false);
     assert.equal(entry.isCostume, false);
     assert.equal(entry.eventOnly, false);
     assert.equal(entry.introducedGeneration, 8);
     assert.deepStrictEqual(entry.types, ["electric", "dark"]);
+    validateCollectionEntry(entry);
   }
+
+  assert.deepStrictEqual(
+    entries.map((entry) => entry.sprite.url),
+    [
+      "https://assets.invalid/normal.png",
+      "https://assets.invalid/normal.png",
+      "https://assets.invalid/shiny.png",
+      "https://assets.invalid/shiny.png",
+    ],
+  );
+
+  validateEntryCounterparts(entries);
+});
+
+test("missing Morpeko media preserves all four collection identities", () => {
+  const { pokemon, species, form } = makeMorpeko();
+
+  pokemon.sprites = null;
+  pokemon.cries = null;
+  form.sprites = null;
+
+  const entries = createEventVariantEntries(
+    pokemon,
+    species,
+    form,
+    "generation-viii",
+  );
+
+  assert.equal(entries.length, 4);
+  assert.equal(new Set(entries.map((entry) => entry.id)).size, 4);
+  assert.equal(entries.filter((entry) => entry.gender === "male").length, 2);
+  assert.equal(entries.filter((entry) => entry.gender === "female").length, 2);
+  assert.equal(entries.filter((entry) => entry.isShiny).length, 2);
+
+  for (const entry of entries) {
+    assert.equal(entry.sprite.url, null);
+    assert.deepStrictEqual(entry.cries, { latest: null, legacy: null });
+    validateCollectionEntry(entry);
+  }
+
+  validateEntryCounterparts(entries);
 });
 
 test("missing costume artwork and cries do not remove entries", () => {

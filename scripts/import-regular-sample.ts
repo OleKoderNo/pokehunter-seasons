@@ -3,17 +3,17 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { getPokeApiResource } from "./lib/pokeapi.js";
 import { createPikachuEntries } from "./lib/create-pikachu-entries.js";
 import { createRegularEntries } from "./lib/create-regular-entries.js";
-import type { CollectionEntry } from "./types/catalogue.js";
 import { readEvolutionChainId } from "./lib/read-evolution-chain-id.js";
+import { validateCollectionEntry } from "./lib/validate-collection-entry.js";
+import { validateEntryCounterparts } from "./lib/validate-entry-counterparts.js";
+import type { CollectionEntry } from "./types/catalogue.js";
 
 const SAMPLE_DIRECTORY = new URL("../data/samples/", import.meta.url);
 const SAMPLE_FILE = new URL("regular-species.json", SAMPLE_DIRECTORY);
 
 /**
- * Fixed examples covering the collection-gender branches.
- *
- * These expectations are independent of the converter's output.
- * A change in identity must be reviewed rather than silently accepted.
+ * Reviewed examples covering every collection-gender branch.
+ * Expected genders are independent of the converter's output.
  */
 const CASES = [
   {
@@ -25,7 +25,7 @@ const CASES = [
   {
     slug: "bulbasaur",
     nationalDexNumber: 1,
-    genders: ["unspecified"],
+    genders: ["male", "female"],
     hasGenderDifference: false,
   },
   {
@@ -50,9 +50,7 @@ const CASES = [
 
 /**
  * Checks reference parsing independently of downloaded API data.
- *
- * Invalid references must produce an error rather than quietly assigning
- * a species to an incorrect evolution family.
+ * Invalid references must not silently assign the wrong evolution family.
  */
 function checkEvolutionChainReferences(): void {
   assert.equal(
@@ -107,23 +105,19 @@ function checkEvolutionChainReferences(): void {
 }
 
 /**
- * Imports a small reviewed sample before attempting a full catalogue.
- *
- * All assertions run before the output file is written.
- * The original Pikachu sample is not overwritten.
+ * Imports a small reviewed sample.
+ * All checks complete before writing the sample file.
  */
 async function main(): Promise<void> {
   checkEvolutionChainReferences();
 
   const entries: CollectionEntry[] = [];
-  // Sequential requests keep this small importer easy to inspect
-  // and avoid sending a burst of requests to the API.
+
   for (const example of CASES) {
     const pokemon = await getPokeApiResource("pokemon", example.slug);
     const species = await getPokeApiResource("pokemon-species", example.slug);
 
     const converted = createRegularEntries(pokemon, species);
-
     const expectedIds: string[] = [];
 
     for (const state of ["normal", "shiny"]) {
@@ -139,6 +133,8 @@ async function main(): Promise<void> {
     );
 
     for (const entry of converted) {
+      validateCollectionEntry(entry);
+
       assert.equal(entry.nationalDexNumber, example.nationalDexNumber);
       assert.equal(entry.hasGenderDifference, example.hasGenderDifference);
       assert.equal(entry.introducedGeneration, 1);
@@ -149,11 +145,11 @@ async function main(): Promise<void> {
     }
 
     if (example.slug === "pikachu") {
-      // The supplied Pikachu species data identifies evolution chain 10.
       assert.ok(
         converted.every((entry) => entry.evolutionChainId === 10),
         "Pikachu entries must reference evolution chain 10.",
       );
+
       assert.deepStrictEqual(
         converted,
         createPikachuEntries(pokemon, species),
@@ -165,6 +161,29 @@ async function main(): Promise<void> {
       );
     }
 
+    if (example.slug === "bulbasaur") {
+      for (const isShiny of [false, true]) {
+        const male = converted.find(
+          (entry) => entry.gender === "male" && entry.isShiny === isShiny,
+        );
+
+        const female = converted.find(
+          (entry) => entry.gender === "female" && entry.isShiny === isShiny,
+        );
+
+        assert.ok(male, "Bulbasaur is missing its male entry.");
+        assert.ok(female, "Bulbasaur is missing its female entry.");
+
+        assert.notEqual(male.id, female.id);
+        assert.deepStrictEqual(male.sprite, female.sprite);
+        assert.equal(male.encounterGroupId, female.encounterGroupId);
+      }
+
+      console.log(
+        "PASS: Bulbasaur genders have separate identities and shared artwork.",
+      );
+    }
+
     entries.push(...converted);
 
     console.log(
@@ -172,7 +191,7 @@ async function main(): Promise<void> {
     );
   }
 
-  assert.equal(entries.length, 12, "Expected twelve sample entries.");
+  assert.equal(entries.length, 14, "Expected fourteen sample entries.");
 
   assert.equal(
     new Set(entries.map((entry) => entry.id)).size,
@@ -180,17 +199,10 @@ async function main(): Promise<void> {
     "The sample contains duplicate collection IDs.",
   );
 
-  // Every identity must have both shiny states.
-  // Sprite availability must not determine whether an entry exists.
-  for (const entry of entries) {
-    const counterpartId =
-      `${entry.formId}:${entry.gender}:` + (entry.isShiny ? "normal" : "shiny");
+  assert.equal(entries.filter((entry) => !entry.isShiny).length, 7);
+  assert.equal(entries.filter((entry) => entry.isShiny).length, 7);
 
-    assert.ok(
-      entries.some((candidate) => candidate.id === counterpartId),
-      `Missing normal/shiny counterpart for ${entry.id}.`,
-    );
-  }
+  validateEntryCounterparts(entries);
 
   const sample = {
     schemaVersion: 1,

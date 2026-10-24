@@ -38,9 +38,7 @@ const SUPPORTED_TYPES = new Set([
 
 /**
  * Reads optional artwork or audio.
- *
- * Missing media is allowed; malformed media references are rejected.
- * Missing artwork must not remove an otherwise valid shiny entry.
+ * Missing media is allowed; malformed references are rejected.
  */
 export function readAssetUrl(container: unknown, field: string): string | null {
   if (container === null || container === undefined) {
@@ -99,10 +97,8 @@ export function readNationalDexNumber(species: JsonObject): number {
 }
 
 /**
- * Reads the English display name.
- *
- * Do not generate names by capitalizing API slugs: names may contain
- * punctuation or gender symbols that the slug does not preserve.
+ * Uses the English source name rather than capitalizing a slug.
+ * This preserves punctuation and gender symbols.
  */
 export function readDisplayName(species: JsonObject): string {
   if (!Array.isArray(species.names)) {
@@ -168,10 +164,10 @@ export function readTypes(pokemon: JsonObject): string[] {
 }
 
 /**
- * Determines collection identities, not encounter probabilities.
+ * Determines supported collection genders, not encounter probabilities.
  *
- * Species with both genders but no visible difference receive one
- * shared identity per shiny state.
+ * Male and female receive separate identities even when they look alike.
+ * A form-specific restriction may narrow this list in its own converter.
  */
 export function readCollectionGenders(species: JsonObject): CollectionGender[] {
   const rate = species.gender_rate;
@@ -187,15 +183,10 @@ export function readCollectionGenders(species: JsonObject): CollectionGender[] {
     throw new Error("Species has invalid gender metadata.");
   }
 
-  // Visible male/female differences require both genders to exist.
-  if (hasDifference) {
-    if (rate <= 0 || rate >= 8) {
-      throw new Error(
-        "Visible gender differences conflict with gender availability.",
-      );
-    }
-
-    return ["male", "female"];
+  if (hasDifference && (rate <= 0 || rate >= 8)) {
+    throw new Error(
+      "Visible gender differences conflict with gender availability.",
+    );
   }
 
   if (rate === -1) {
@@ -210,17 +201,14 @@ export function readCollectionGenders(species: JsonObject): CollectionGender[] {
     return ["female"];
   }
 
-  return ["unspecified"];
+  return ["male", "female"];
 }
 
 /**
- * Creates collection entries for a regular default Pokémon resource.
+ * Creates normal and shiny entries for a regular default Pokémon.
  *
- * This currently requires the Pokémon and species slugs to match.
- * Named varieties, regional forms, and costumes require a separate
- * reviewed mapping rather than guessed metadata.
- *
- * Produces both normal and shiny entries even when artwork is missing.
+ * Named varieties, regional forms, and costumes use reviewed converters.
+ * Missing artwork never removes a supported collection identity.
  */
 export function createRegularEntries(
   pokemon: JsonObject,
@@ -277,11 +265,11 @@ export function createRegularEntries(
 
   const entries: CollectionEntry[] = [];
 
-  // Keep normal entries before shiny entries, matching the Pikachu sample.
+  // Normal entries precede shiny entries, matching the original sample.
   for (const isShiny of [false, true]) {
     for (const gender of genders) {
-      // Female-only species use their default sprite.
-      // Dedicated female fields are used for visible gender differences.
+      // Identical-looking genders share default artwork.
+      // Female-only species also use their default artwork.
       const useFemaleSprite = hasGenderDifference && gender === "female";
 
       const spriteField = useFemaleSprite

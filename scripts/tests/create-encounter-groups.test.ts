@@ -5,8 +5,7 @@ import type { CollectionEntry } from "../types/catalogue.js";
 
 /**
  * Provides a complete entry for relationship tests.
- *
- * Individual API parsing and entry validation are covered separately.
+ * API parsing and individual entry validation are tested separately.
  */
 function createEntry(
   overrides: Partial<CollectionEntry> = {},
@@ -77,23 +76,74 @@ test("regular genders, shiny entries, and costumes share their mapped group", ()
   ]);
 });
 
+test("genders without visible differences share one encounter group", () => {
+  const male = createEntry({
+    id: "bulbasaur:male:normal",
+    speciesId: "bulbasaur",
+    nationalDexNumber: 1,
+    evolutionChainId: 1,
+    encounterGroupId: "bulbasaur",
+    formId: "bulbasaur",
+    displayName: "Bulbasaur",
+    gender: "male",
+    hasGenderDifference: false,
+    types: ["grass", "poison"],
+  });
+
+  const entries = [
+    male,
+    createEntry({
+      ...male,
+      id: "bulbasaur:female:normal",
+      gender: "female",
+    }),
+    createEntry({
+      ...male,
+      id: "bulbasaur:male:shiny",
+      isShiny: true,
+    }),
+    createEntry({
+      ...male,
+      id: "bulbasaur:female:shiny",
+      gender: "female",
+      isShiny: true,
+    }),
+  ];
+
+  const groups = createEncounterGroups(entries);
+
+  assert.deepEqual(groups, [
+    {
+      id: "bulbasaur",
+      speciesId: "bulbasaur",
+      nationalDexNumber: 1,
+      entryIds: [
+        "bulbasaur:female:normal",
+        "bulbasaur:female:shiny",
+        "bulbasaur:male:normal",
+        "bulbasaur:male:shiny",
+      ],
+    },
+  ]);
+});
+
 test("regional forms keep separate groups even when their species matches", () => {
   const regular = createEntry({
-    id: "marowak:unspecified:normal",
+    id: "marowak:male:normal",
     speciesId: "marowak",
     nationalDexNumber: 105,
     evolutionChainId: 46,
     encounterGroupId: "marowak",
     formId: "marowak",
     displayName: "Marowak",
-    gender: "unspecified",
+    gender: "male",
     hasGenderDifference: false,
     types: ["ground"],
   });
 
   const regional = createEntry({
     ...regular,
-    id: "marowak-alola:unspecified:normal",
+    id: "marowak-alola:male:normal",
     encounterGroupId: "marowak-alola",
     formId: "marowak-alola",
     formName: "Alolan",
@@ -155,14 +205,14 @@ test("group ordering is independent of input order", () => {
   const entries = [
     createEntry(),
     createEntry({
-      id: "bulbasaur:unspecified:normal",
+      id: "bulbasaur:male:normal",
       speciesId: "bulbasaur",
       nationalDexNumber: 1,
       evolutionChainId: 1,
       encounterGroupId: "bulbasaur",
       formId: "bulbasaur",
       displayName: "Bulbasaur",
-      gender: "unspecified",
+      gender: "male",
       hasGenderDifference: false,
       types: ["grass", "poison"],
     }),

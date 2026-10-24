@@ -20,10 +20,7 @@ function createGroups(): EncounterGroup[] {
       id: "marowak-alola",
       speciesId: "marowak",
       nationalDexNumber: 105,
-      entryIds: [
-        "marowak-alola:unspecified:normal",
-        "marowak-alola:unspecified:shiny",
-      ],
+      entryIds: ["marowak-alola:male:normal", "marowak-alola:male:shiny"],
     },
   ];
 }

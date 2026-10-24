@@ -1,30 +1,24 @@
 /**
  * Gender identity used for collection entries.
  *
- * Male and female entries are separated when the supported form
- * has a visible gender difference.
+ * Male and female are separate collectibles whenever both are supported,
+ * including when they share the same artwork.
  *
- * Forms or costumes supporting only one gender use that gender.
- * "Unspecified" represents a shared identity for Pokémon with both
- * genders but no supported visible gender difference.
+ * Single-gender forms retain only their supported gender.
+ * Pokémon without a gender use "genderless".
  */
-export type CollectionGender = "male" | "female" | "genderless" | "unspecified";
+export type CollectionGender = "male" | "female" | "genderless";
 
 /**
- * A reference to the entry's sprite and an optional fallback.
- *
- * Missing artwork does not change the entry's collection identity.
+ * Artwork for one entry.
+ * Missing artwork does not change collection identity.
  */
 export interface SpriteReference {
   url: string | null;
   fallbackUrl: string | null;
 }
 
-/**
- * Available Pokémon cry references.
- *
- * Null means the source did not provide that recording.
- */
+/** Null means the source did not supply that recording. */
 export interface CryReferences {
   latest: string | null;
   legacy: string | null;
@@ -33,19 +27,13 @@ export interface CryReferences {
 /**
  * One collectible Pokémon identity.
  *
- * Different supported forms, visible gender variants, and shiny
- * states can produce separate entries.
- *
- * This describes catalogue data, not a viewer's ownership or
- * an individual catch record.
+ * Supported forms, genders, and shiny states can produce separate entries.
+ * This describes catalogue data, not ownership or an individual catch.
  */
 export interface CollectionEntry {
   /**
-   * Stable collection identity.
-   * Example: "pikachu:female:shiny".
-   *
-   * Do not change existing IDs after catches reference them without
-   * providing an explicit data migration.
+   * Permanent collection ID, for example "braixen:female:shiny".
+   * Changing IDs referenced by saved catches requires a migration.
    */
   id: string;
 
@@ -56,111 +44,85 @@ export interface CollectionEntry {
   nationalDexNumber: number;
 
   /**
-   * PokéAPI evolution-chain identifier shared by the species' family.
-   *
-   * Used to resolve evolution-family event selectors.
-   * This does not grant eligibility or override generation restrictions.
+   * PokéAPI evolution-chain identifier used by family event selectors.
+   * Family membership does not override generation restrictions.
    */
   evolutionChainId: number;
 
-  /** Whether the species is classified as Legendary. */
   isLegendary: boolean;
-
-  /** Whether the species is classified as Mythical. */
   isMythical: boolean;
 
   /**
-   * References the encounter group selected before variant selection.
-   *
-   * Sharing a group does not make every variant eligible to be caught.
+   * Group selected before its collection variant.
+   * Membership does not make every variant eligible.
    */
   encounterGroupId: string;
 
-  /** Identifier for the specific form represented by this entry. */
+  /** Stable identifier for the supported form. */
   formId: string;
 
-  /** Human-readable Pokémon name. */
   displayName: string;
 
-  /** Human-readable form label, or null for the regular form. */
+  /** Display label, or null for the regular form. */
   formName: string | null;
 
-  /** Regional form label, or null when this is not a regional form. */
+  /** Regional form label, or null for a non-regional form. */
   regionalForm: string | null;
 
-  /** Gender identity represented by this collection entry. */
+  /** The gender represented by this particular collectible identity. */
   gender: CollectionGender;
 
-  /** Whether this supported form has a visible gender difference. */
+  /**
+   * Whether the supported form has a visible gender difference.
+   *
+   * This describes appearance only. False does not combine male and
+   * female identities or prevent both genders from being collected.
+   */
   hasGenderDifference: boolean;
 
-  /** Shiny and non-shiny versions are separate collection entries. */
+  /** Normal and shiny states are separate collectibles. */
   isShiny: boolean;
 
-  /** Whether this entry represents a costume variant. */
   isCostume: boolean;
 
   /** Whether obtaining this entry requires an eligible active event. */
   eventOnly: boolean;
 
   /**
-   * Generation in which this form was introduced.
-   * A regional form can have a later generation than its base species.
+   * Generation introducing this form.
+   * It may differ from the base species' introduction generation.
    */
   introducedGeneration: number;
 
-  /** Pokémon type slugs used for encounter categories and statistics. */
+  /** Type slugs belonging to this form. */
   types: string[];
 
-  /** Sprite references for this particular collection entry. */
   sprite: SpriteReference;
-
-  /** Cry references used by the optional catch overlay. */
   cries: CryReferences;
 }
 
 /**
- * One Pokémon group used during encounter selection.
+ * A Pokémon group selected before its collection variants.
  *
- * Collection variants are referenced by their permanent entry IDs.
- * Having more variants must not automatically increase the group's
- * chance of being selected.
- *
- * Eligibility is evaluated from the referenced entries at runtime.
- * This record does not grant access to locked forms or costumes.
+ * Additional genders or shiny entries do not increase its group weight.
+ * Runtime eligibility is evaluated from its referenced entries.
  */
 export interface EncounterGroup {
-  /** Stable ID already referenced by CollectionEntry.encounterGroupId. */
   id: string;
-
-  /** Species shared by every entry in this group. */
   speciesId: string;
-
-  /** National Pokédex number shared by this group's entries. */
   nationalDexNumber: number;
 
   /**
-   * All collection identities belonging to this group.
-   *
-   * These include normal and shiny entries. Runtime selection must
-   * filter them for the rolled shiny state and current eligibility.
+   * Permanent collection IDs belonging to this group.
+   * Includes both shiny states and every supported gender.
    */
   entryIds: string[];
 }
 
-/**
- * Supported encounter rarity classes.
- *
- * Numerical weights are configured separately in game.json.
- */
+/** Numerical selection weights are configured separately in game.json. */
 export type RarityClass = "common" | "uncommon" | "rare" | "ultraRare";
 
-/**
- * An encounter group with its configured rarity resolved.
- *
- * Every generated group receives an explicit class, even when it
- * inherits the default from rarity.json.
- */
+/** Every generated group receives an explicit resolved rarity class. */
 export interface RatedEncounterGroup extends EncounterGroup {
   rarityClass: RarityClass;
 }

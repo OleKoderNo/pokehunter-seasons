@@ -69,7 +69,7 @@ npm run merge:catalogue
 | Form inspection             | Record form metadata for review before conversion                              |
 | Reviewed Ghost import       | Convert reviewed forms; compare overlap against Generation 1                   |
 | Explicit variant inspection | Print metadata for Hangry Morpeko and five costumes; does not generate entries |
-| Explicit variant import     | Generate two Morpeko and ten female-only costume entries                       |
+| Explicit variant import     | Generate four Morpeko and ten female-only costume entries                      |
 | Merge                       | Validate, deduplicate, check counterparts, build groups, and apply rarity      |
 
 The reviewed Ghost import depends on the form-details report and Generation 1 output.
@@ -96,8 +96,9 @@ the latest run succeeded. Regenerate affected downstream outputs after source ch
 Existing tracked samples remain examples. Everything under data/catalogue is ignored;
 do not force-add it. Final production packaging is not implemented.
 
-The verified merge has 632 input entries, 12 identical overlaps removed, 620 entries,
-and 277 groups. It remains `sampleOnly: true`. See [Data Model](DATA_MODEL.md).
+The verified merge has 1,020 input entries, 24 identical overlaps removed, and
+996 entries across 277 groups. There are 498 normal and 498 shiny entries.
+It remains `sampleOnly: true`. See [Data Model](DATA_MODEL.md).
 
 ## Merge behavior
 
@@ -177,8 +178,11 @@ refactoring. Do not disable lint rules merely to hide unexplained errors.
 
 ## Remaining integration
 
-The current catalogue can be loaded in C# and used to build eligible categories.
-Deterministic weighted selection is available separately. A random-number source,
-complete encounter selection, viewer-specific ownership filtering, catches/redemptions, controlled
-runtime loading/reloading, and production catalogue packaging remain. See
-[Architecture](ARCHITECTURE.md) for boundaries rather than treating imports as a live game.
+Catalogue loading, eligibility, weighted encounters, gender selection, shiny bonuses,
+retry sessions, collection reads, and transactional result storage are implemented.
+A restricted Twitch redemption action has saved real reward redemptions to a test
+database using the current catalogue.
+
+Live catch announcements and overlay delivery, interrupted-session recovery,
+controlled catalogue reloading, and production catalogue packaging remain.
+See [Architecture](ARCHITECTURE.md) for system boundaries.

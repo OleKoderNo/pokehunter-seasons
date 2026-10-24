@@ -59,12 +59,12 @@ public class CPHInline
 
             CatalogueEntry bulbasaur = RequiredEntry(
                 catalogue,
-                "bulbasaur:unspecified:normal"
+                "bulbasaur:male:normal"
             );
 
             CatalogueEntry charmander = RequiredEntry(
                 catalogue,
-                "charmander:unspecified:normal"
+                "charmander:male:normal"
             );
 
             directory = Path.Combine(

@@ -6,17 +6,15 @@ import {
   createEventVariantEntries,
   EVENT_VARIANTS,
 } from "./lib/create-event-variant-entries.js";
+import { validateCollectionEntry } from "./lib/validate-collection-entry.js";
+import { validateEntryCounterparts } from "./lib/validate-entry-counterparts.js";
 import type { CollectionEntry } from "./types/catalogue.js";
 
 // Compiled scripts run from dist/, one level below the repository root.
 const OUTPUT_DIRECTORY = new URL("../data/catalogue/", import.meta.url);
 const OUTPUT_FILE = new URL("halloween-2026-variants.json", OUTPUT_DIRECTORY);
 
-/**
- * Reads a named API reference after checking its structure.
- *
- * External JSON must be validated before its properties are used.
- */
+/** Validates a named reference before using it in an API request. */
 function readReferenceName(value: unknown, context: string): string {
   if (
     !isJsonObject(value) ||
@@ -32,9 +30,8 @@ function readReferenceName(value: unknown, context: string): string {
 /**
  * Generates the six reviewed explicit event variants.
  *
- * Each variant receives normal and shiny entries.
- * Costume entries are female-only according to their reviewed mappings.
- *
+ * Hangry Morpeko has male and female normal/shiny entries.
+ * Each Pikachu costume has only female normal/shiny entries.
  * This generates catalogue data; it does not activate encounters.
  */
 async function main(): Promise<void> {
@@ -48,8 +45,7 @@ async function main(): Promise<void> {
       definition.speciesId,
     );
 
-    // The inspected resources each have one reviewed form.
-    // Stop for review if the source structure changes.
+    // A changed source structure requires another review.
     if (!Array.isArray(pokemon.forms) || pokemon.forms.length !== 1) {
       throw new Error(
         `Expected one reviewed form for ${definition.pokemonId}.`,
@@ -69,8 +65,7 @@ async function main(): Promise<void> {
 
     const form = await getPokeApiResource("pokemon-form", formId);
 
-    // Resolve the form's introduction generation rather than using
-    // the generation of its original species.
+    // Use the form's introduction generation, not the base species'.
     const versionGroupId = readReferenceName(
       form.version_group,
       `${formId}.version_group`,
@@ -93,19 +88,37 @@ async function main(): Promise<void> {
       generationName,
     );
 
-    assert.equal(converted.length, 2);
-    assert.deepStrictEqual(
-      converted.map((entry) => entry.isShiny),
-      [false, true],
+    const expectedIds = [false, true].flatMap((isShiny) =>
+      definition.genders.map(
+        (gender) =>
+          `${definition.pokemonId}:${gender}:${isShiny ? "shiny" : "normal"}`,
+      ),
     );
+
+    assert.deepStrictEqual(
+      converted.map((entry) => entry.id),
+      expectedIds,
+      `Unexpected collection identities for ${definition.pokemonId}.`,
+    );
+
+    for (let index = 0; index < converted.length; index += 1) {
+      validateCollectionEntry(
+        converted[index],
+        `${definition.pokemonId}.entries[${index}]`,
+      );
+    }
 
     entries.push(...converted);
   }
 
-  // Check the complete output before replacing any existing catalogue.
-  assert.equal(entries.length, 12);
-  assert.equal(new Set(entries.map((entry) => entry.id)).size, 12);
+  // Reviewed roster: four Morpeko entries plus five female-only pairs.
+  assert.equal(entries.length, 14);
+  assert.equal(new Set(entries.map((entry) => entry.id)).size, 14);
   assert.equal(entries.filter((entry) => entry.isCostume).length, 10);
+  assert.equal(entries.filter((entry) => !entry.isShiny).length, 7);
+  assert.equal(entries.filter((entry) => entry.isShiny).length, 7);
+
+  validateEntryCounterparts(entries);
 
   const output = {
     schemaVersion: 1,
@@ -122,8 +135,7 @@ async function main(): Promise<void> {
     OUTPUT_DIRECTORY,
   );
 
-  // Write the complete output first, then replace the previous file.
-  // A failed conversion never reaches this replacement step.
+  // Complete conversion and validation before replacing the old output.
   try {
     await writeFile(
       temporaryFile,
@@ -139,6 +151,7 @@ async function main(): Promise<void> {
   console.table(
     entries.map((entry) => ({
       id: entry.id,
+      gender: entry.gender,
       group: entry.encounterGroupId,
       eventOnly: entry.eventOnly,
       spriteAvailable: entry.sprite.url !== null,

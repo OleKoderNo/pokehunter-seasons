@@ -22,10 +22,7 @@ const GENERATIONS: Readonly<Record<string, number>> = {
   "generation-ix": 9,
 };
 
-/**
- * Reviewed presentation labels for the current Ghost-type roster.
- * Collection identity must not depend on this displayed wording.
- */
+/** Reviewed display labels; permanent identity does not depend on them. */
 const FORM_LABELS: Readonly<Record<string, string>> = {
   alola: "Alolan",
   altered: "Altered Forme",
@@ -61,8 +58,8 @@ const FORM_LABELS: Readonly<Record<string, string>> = {
 };
 
 /**
- * These API forms represent genders of one collection form.
- * Suffixes alone are not used to infer gender identity.
+ * These source forms each represent one gender of a shared collection form.
+ * Do not create an additional gender from either individual source.
  */
 const GENDER_FORMS: Readonly<
   Record<string, { speciesId: string; gender: "male" | "female" }>
@@ -88,8 +85,8 @@ const REGIONAL_FORMS: Readonly<Record<string, string>> = {
 /**
  * Converts a reviewed non-costume form into collection entries.
  *
+ * Supported genders remain separate even when artwork is shared.
  * generationName comes from the form's version group.
- * Costume conversion and runtime eligibility are separate concerns.
  */
 export function createFormEntries(
   pokemon: JsonObject,
@@ -139,7 +136,7 @@ export function createFormEntries(
       );
     }
 
-    // Gender counterparts share one form and encounter group.
+    // Separate source resources converge on one form and encounter group.
     formId = species.name;
     genders = [genderMapping.gender];
   } else {
@@ -159,8 +156,6 @@ export function createFormEntries(
   const nationalDexNumber = readNationalDexNumber(species);
   const evolutionChainId = readEvolutionChainId(species);
   const displayName = readDisplayName(species);
-
-  // Type-changing forms must use their own types.
   const types = readTypes(form);
 
   const cries = {
@@ -175,8 +170,8 @@ export function createFormEntries(
       const defaultField = isShiny ? "front_shiny" : "front_default";
       const femaleField = isShiny ? "front_shiny_female" : "front_female";
 
-      // A gender-specific form already depicts that gender in its
-      // default fields. Ordinary visible differences use female fields.
+      // Gender-specific resources depict their gender in default fields.
+      // Genders without visible differences also share default artwork.
       const useFemaleField =
         genderMapping === undefined &&
         species.has_gender_differences &&
@@ -186,7 +181,7 @@ export function createFormEntries(
 
       let spriteUrl = readAssetUrl(form.sprites, spriteField);
 
-      // Alternate forms must not inherit artwork for a different form.
+      // Alternate forms must not borrow artwork depicting another form.
       if (spriteUrl === null && form.is_default) {
         let parentField = spriteField;
 
@@ -198,8 +193,6 @@ export function createFormEntries(
             parentMapping.speciesId === species.name &&
             parentMapping.gender === genderMapping.gender;
 
-          // Basculegion-female's parent default sprite is already female.
-          // A shared parent needs its dedicated female field instead.
           parentField =
             genderMapping.gender === "female" && !parentRepresentsSelectedGender
               ? femaleField
@@ -216,12 +209,8 @@ export function createFormEntries(
         evolutionChainId,
         isLegendary: species.is_legendary,
         isMythical: species.is_mythical,
-
-        // Separate non-costume forms receive separate groups.
-        // Reviewed gender counterparts already share a canonical formId.
         encounterGroupId: formId,
         formId,
-
         displayName,
         formName,
         regionalForm: REGIONAL_FORMS[form.name] ?? null,
