@@ -172,24 +172,32 @@ copy. Keep personal paths out of commits and shared exports. CatchOverlayCheck u
 [Catch Overlay](CATCH_OVERLAY.md). DatabaseInitializationCheck also requires this argument,
 as described below.
 
-| Source in `streamerbot/tests/`     | Required additional references                                  | Expected coverage                                                                                                                                      |
-| ---------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GameConfigurationCheck.cs`        | Core, TimeZoneConverter, Newtonsoft.Json                        | Game/seasons/events load; one timestamp selects/logs season/event                                                                                      |
-| `DatabaseInitializationCheck.cs`   | Storage, System.Data.SQLite, System.Data                        | Existing history preserved; fresh/repeated initialization reaches schema 4                                                                             |
-| `DatabaseRedemptionSchemaCheck.cs` | Storage, System.Data.SQLite, System.Data                        | Redemption uniqueness, seasonal catch uniqueness, attempt/streak constraints, foreign keys, explicit rollback                                          |
-| `DatabaseRejectionCheck.cs`        | Storage, System.Data.SQLite, System.Data                        | Newer/unrelated database rejected without byte changes                                                                                                 |
-| `TrainerStorageCheck.cs`           | Storage, System.Data.SQLite, System.Data                        | Create/read/rename, timestamps, no duplicate trainers, invalid name rejection                                                                          |
-| `SeasonStorageCheck.cs`            | Storage, System.Data.SQLite, System.Data                        | Equivalent registration, conflicts, invalid generations, international IDs, rollback                                                                   |
-| `SQLitePersistenceCheck.cs`        | System.Data.SQLite, System.Data                                 | Persistent run counter; see SQLite Setup                                                                                                               |
-| `CatchOverlayCheck.cs`             | Newtonsoft.Json, System                                         | Test notification; see Catch Overlay                                                                                                                   |
-| `CollectionStorageCheck.cs`        | Storage, System.Data.SQLite, System.Data                        | Seasonal ownership, lifetime uniqueness, failure streaks, trainer isolation, international season IDs, immutable snapshots, conflicting shiny metadata |
-| `RedemptionStorageCheck.cs`        | Core, Storage, Newtonsoft.Json, System.Data.SQLite, System.Data | Atomic saves, repeated delivery, stale-state rejection, metadata validation, rollback, seasonal uniqueness, lifetime counts                            |
+| Source in `streamerbot/tests/`     | Required additional references           | Expected coverage                                                                                                                                      |
+| ---------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GameConfigurationCheck.cs`        | Core, TimeZoneConverter, Newtonsoft.Json | Game/seasons/events load; one timestamp selects/logs season/event                                                                                      |
+| `DatabaseInitializationCheck.cs`   | Storage, System.Data.SQLite, System.Data | Existing history preserved; fresh/repeated initialization reaches schema 4                                                                             |
+| `DatabaseRedemptionSchemaCheck.cs` | Storage, System.Data.SQLite, System.Data | Redemption uniqueness, seasonal catch uniqueness, attempt/streak constraints, foreign keys, explicit rollback                                          |
+| `DatabaseRejectionCheck.cs`        | Storage, System.Data.SQLite, System.Data | Newer/unrelated database rejected without byte changes                                                                                                 |
+| `TrainerStorageCheck.cs`           | Storage, System.Data.SQLite, System.Data | Create/read/rename, timestamps, no duplicate trainers, invalid name rejection                                                                          |
+| `SeasonStorageCheck.cs`            | Storage, System.Data.SQLite, System.Data | Equivalent registration, conflicts, invalid generations, international IDs, rollback                                                                   |
+| `SQLitePersistenceCheck.cs`        | System.Data.SQLite, System.Data          | Persistent run counter; see SQLite Setup                                                                                                               |
+| `CatchOverlayCheck.cs`             | Newtonsoft.Json, System                  | Test notification; see Catch Overlay                                                                                                                   |
+| `CollectionStorageCheck.cs`        | Storage, System.Data.SQLite, System.Data | Seasonal ownership, lifetime uniqueness, failure streaks, trainer isolation, international season IDs, immutable snapshots, conflicting shiny metadata |
+
+| `RedemptionStorageCheck.cs` | Core, Storage, Newtonsoft.Json, System.Data.SQLite, System.Data | Atomic saves, repeated delivery, stale-state rejection, metadata validation, rollback, seasonal uniqueness, lifetime counts |
+
+| `RedemptionProcessingCheck.cs` | Core, Storage, TimeZoneConverter, Newtonsoft.Json, System.Data.SQLite, System.Data | Connected rolling and saving, persisted retry budgets, duplicate delivery without random draws, technical-error propagation |
 
 `RedemptionStorageCheck` requires `pokeHunterProjectRoot` before Execute
 C# Code. It reads `data/catalogue/merged-entries.json` and creates an
 isolated temporary database. Run the whole action so the argument is set.
 Storage now references Core and Newtonsoft.Json; deploy matching library
 builds before running the check.
+
+`RedemptionProcessingCheck` requires `pokeHunterProjectRoot` and reads
+the generated merged catalogue. It builds a small Pikachu fixture and
+uses a temporary database with controlled randomness. Run the whole
+action so its argument is supplied. Never attach this test to a live reward.
 
 Core, Storage, TimeZoneConverter, and managed SQLite are under Streamer.bot's dlls folder;
 Newtonsoft.Json is in its root. Framework references on the verified setup are:

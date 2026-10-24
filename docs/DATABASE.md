@@ -233,10 +233,36 @@ Encounter eligibility remains the encounter engine's responsibility.
 These checks do not yet exercise simultaneous save operations from
 multiple threads or processes.
 
+## Connected redemption processing
+
+`RedemptionProcessor` connects collection reads, shiny probability
+calculation, encounter sessions, and transactional result storage.
+
+It checks for an existing redemption before reading collection state or
+consuming randomness. Existing results are returned without changing progress.
+
+For new redemptions, it reads one collection snapshot, calculates shiny
+probability once, runs the available attempts, and saves the completed result.
+
+Technical errors propagate without becoming ordinary gameplay failures.
+The processor does not automatically reroll failed processing operations.
+
+Calls through one processor instance are serialized. Other instances and
+processes still rely on database transactions, uniqueness constraints,
+and stale-state rejection. Simultaneous processing has not yet been tested.
+
+The caller must supply categories prepared for the correct catalogue,
+season, event, and acceptance time.
+
+`RedemptionProcessingCheck` verifies normal and shiny catches, increased
+retry budgets, repeated delivery without random draws, preservation of
+newer progress, and propagation of an injected technical failure.
+It uses controlled randomness and a temporary database.
+
 ## Remaining storage work
 
-Connect the encounter-session result to the save request and coordinate
-live redemption processing.
+Connect the processor to live Twitch redemption delivery, including
+trainer registration, schedule selection, and encounter-category preparation.
 
 Cooldown enforcement, concurrent rolls, interrupted-session recovery,
 and reliable notification delivery remain to be implemented.
@@ -247,7 +273,8 @@ conflict must not become an ordinary gameplay failure.
 `WasCreated` helps identify repeated processing but does not guarantee
 exactly-once chat or overlay delivery.
 
-Before live use, implement and verify backup and restore.
+Next: implement the live redemption adapter and per-viewer cooldown,
+then connect committed results to chat and the overlay.
 
 ## Migration and backup policy
 
