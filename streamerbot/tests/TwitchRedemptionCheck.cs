@@ -406,31 +406,58 @@ public class CPHInline
         }
     }
 
+    /// <summary>
+    /// Looks up the actual redeemer after their catch has been saved.
+    /// A failed lookup leaves the notification without an avatar.
+    /// </summary>
     private string ReadProfileImageUrl(string userId)
     {
-        string targetUserId;
-        string imageUrl;
-
-        if (!CPH.TryGetArg<string>("targetUserId", out targetUserId) ||
-            !string.Equals(targetUserId, userId, StringComparison.Ordinal) ||
-            !CPH.TryGetArg<string>(
-                "targetUserProfileImageUrl",
-                out imageUrl
-            ))
+        try
         {
+            var userInfo = CPH.TwitchGetExtendedUserInfoById(userId);
+
+            if (userInfo == null ||
+                !string.Equals(
+                    userInfo.UserId,
+                    userId,
+                    StringComparison.Ordinal
+                ))
+            {
+                CPH.LogWarn(
+                    "[PokéHunter] Avatar lookup returned no matching user."
+                );
+
+                return null;
+            }
+
+            Uri parsed;
+
+            if (!Uri.TryCreate(
+                    userInfo.ProfileImageUrl,
+                    UriKind.Absolute,
+                    out parsed
+                ) ||
+                (parsed.Scheme != Uri.UriSchemeHttps &&
+                 parsed.Scheme != Uri.UriSchemeHttp))
+            {
+                CPH.LogWarn(
+                    "[PokéHunter] Avatar lookup returned no valid image URL."
+                );
+
+                return null;
+            }
+
+            return parsed.AbsoluteUri;
+        }
+        catch (Exception exception)
+        {
+            CPH.LogWarn(
+                "[PokéHunter] Avatar lookup failed; continuing without it: " +
+                exception.Message
+            );
+
             return null;
         }
-
-        Uri parsed;
-
-        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out parsed) ||
-            (parsed.Scheme != Uri.UriSchemeHttps &&
-             parsed.Scheme != Uri.UriSchemeHttp))
-        {
-            return null;
-        }
-
-        return parsed.AbsoluteUri;
     }
 
     private static void PostCatchNotification(object payload)
